@@ -4,23 +4,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Zap, Plus, X } from "lucide-react";
+import { Settings, Zap, Plus, X, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { useGeneratedMusic } from "@/hooks/useGeneratedMusic";
+import { SunoGenerateRequest } from "@/types/music";
 
 export const GeneratePanel = () => {
   const [musicDescription, setMusicDescription] = useState("");
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
-  const [inspirationTags, setInspirationTags] = useState(["rock", "rock", "rock"]);
+  const [inspirationTags, setInspirationTags] = useState(["electronic", "ambient", "chill"]);
   const [customTag, setCustomTag] = useState("");
+  const [title, setTitle] = useState("");
   
   // Advanced mode settings
   const [duration, setDuration] = useState([120]);
   const [tempo, setTempo] = useState("medium");
   const [key, setKey] = useState("C");
   const [mood, setMood] = useState("energetic");
+  const [isInstrumental, setIsInstrumental] = useState(false);
+  const [model, setModel] = useState<"V3_5" | "V4" | "V4_5">("V4");
+  const [vocalGender, setVocalGender] = useState<"m" | "f">("m");
+  
+  const { generateMusic, isGenerating, currentTaskId } = useGeneratedMusic();
 
   const predefinedTags = [
     "rock", "pop", "jazz", "electronic", "classical", "hip-hop", 
@@ -44,14 +52,29 @@ export const GeneratePanel = () => {
     }
   };
 
-  const handleGenerate = () => {
-    // TODO: Implement Suno AI integration
-    console.log("Generating music with:", {
-      description: musicDescription,
-      tags: inspirationTags,
-      isAdvanced: isAdvancedMode,
-      settings: isAdvancedMode ? { duration, tempo, key, mood } : null
-    });
+  const handleGenerate = async () => {
+    if (!musicDescription.trim()) return;
+
+    try {
+      const generateParams: SunoGenerateRequest = {
+        prompt: musicDescription,
+        customMode: isAdvancedMode,
+        instrumental: isInstrumental,
+        model: model,
+        ...(isAdvancedMode && {
+          title: title || "AI Generated Music",
+          style: inspirationTags.join(", "),
+          vocalGender: vocalGender,
+        }),
+        ...(inspirationTags.length > 0 && {
+          negativeTags: "",
+        })
+      };
+
+      await generateMusic(generateParams);
+    } catch (error) {
+      console.error("Generation failed:", error);
+    }
   };
 
   return (
@@ -105,6 +128,61 @@ export const GeneratePanel = () => {
         {isAdvancedMode && (
           <div className="space-y-4 p-4 bg-muted/20 rounded-lg border border-glass-border/30">
             <h3 className="text-sm font-medium text-primary">Advanced Settings</h3>
+            
+            {/* Title Field */}
+            <div className="space-y-2">
+              <Label htmlFor="song-title" className="text-sm font-medium">
+                Song Title
+              </Label>
+              <Input
+                id="song-title"
+                placeholder="Enter song title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-input/50 border-glass-border"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Model Version</Label>
+                <Select value={model} onValueChange={(value: "V3_5" | "V4" | "V4_5") => setModel(value)}>
+                  <SelectTrigger className="bg-input/50 border-glass-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="V3_5">V3.5 - Creative diversity</SelectItem>
+                    <SelectItem value="V4">V4 - Best quality</SelectItem>
+                    <SelectItem value="V4_5">V4.5 - Superior blending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Vocal Gender</Label>
+                <Select value={vocalGender} onValueChange={(value: "m" | "f") => setVocalGender(value)}>
+                  <SelectTrigger className="bg-input/50 border-glass-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="m">Male</SelectItem>
+                    <SelectItem value="f">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Instrumental Toggle */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="instrumental-toggle" className="text-sm">
+                Instrumental (No vocals)
+              </Label>
+              <Switch
+                id="instrumental-toggle"
+                checked={isInstrumental}
+                onCheckedChange={setIsInstrumental}
+              />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -230,13 +308,27 @@ export const GeneratePanel = () => {
         {/* Generate Button */}
         <div className="pt-4">
           <Button
-            className="w-full bg-gradient-primary hover:bg-gradient-primary/90 text-primary-foreground font-medium py-3 rounded-lg shadow-glow hover:shadow-glow/80 transition-all"
+            className="w-full bg-gradient-primary hover:bg-gradient-primary/90 text-primary-foreground font-medium py-3 rounded-lg shadow-glow hover:shadow-glow/80 transition-all disabled:opacity-50"
             onClick={handleGenerate}
-            disabled={!musicDescription.trim()}
+            disabled={!musicDescription.trim() || isGenerating}
           >
-            <Zap className="w-5 h-5 mr-2" />
-            Generate
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Zap className="w-5 h-5 mr-2" />
+                Generate
+              </>
+            )}
           </Button>
+          {isGenerating && currentTaskId && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Task ID: {currentTaskId}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground text-center mt-2">
             Cost: 1 beat • Estimated time: 30-60 seconds
           </p>
