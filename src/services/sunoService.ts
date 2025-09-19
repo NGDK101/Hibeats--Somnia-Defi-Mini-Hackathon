@@ -1,33 +1,43 @@
 import { SunoGenerateRequest, SunoGenerateResponse, SunoTaskResponse } from "@/types/music";
 import { toast } from "sonner";
 
-const SUNO_API_KEY = "5ae6d1e7e613cd169884e7704395b3b4";
+const SUNO_API_KEY = import.meta.env.VITE_SUNO_API_KEY;
 const SUNO_BASE_URL = "https://api.sunoapi.org";
+
+// Validate API key exists
+if (!SUNO_API_KEY) {
+  // console.error("❌ VITE_SUNO_API_KEY is not set in environment variables");
+}
 
 class SunoService {
   private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${SUNO_BASE_URL}${endpoint}`, {
+    const url = `${SUNO_BASE_URL}${endpoint}`;
+    const requestOptions = {
       ...options,
       headers: {
         "Authorization": `Bearer ${SUNO_API_KEY}`,
         "Content-Type": "application/json",
         ...options.headers,
       },
-    });
+    };
+
+    const response = await fetch(url, requestOptions);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // console.error(`❌ Suno API Request failed:`, errorData);
       throw new Error(errorData.msg || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   }
 
   async generateMusic(params: SunoGenerateRequest): Promise<SunoGenerateResponse> {
     try {
       const requestData: SunoGenerateRequest = {
         ...params,
-        callBackUrl: window.location.origin + "/api/suno-callback", // Optional callback
+        callBackUrl: window.location.origin + "/api/suno-callback", // Callback URL untuk menerima hasil
       };
 
       const response = await this.makeRequest<SunoGenerateResponse>("/api/v1/generate", {
@@ -41,8 +51,8 @@ class SunoService {
 
       return response;
     } catch (error) {
-      console.error("Suno API Error:", error);
-      toast.error(`Failed to generate music: ${error instanceof Error ? error.message : "Unknown error"}`);
+      // console.error("❌ Suno API Error:", error);
+      // Don't show toast here, let the caller handle the error
       throw error;
     }
   }
@@ -57,7 +67,7 @@ class SunoService {
 
       return response;
     } catch (error) {
-      console.error("Suno Task Status Error:", error);
+      // console.error("Suno Task Status Error:", error);
       throw error;
     }
   }

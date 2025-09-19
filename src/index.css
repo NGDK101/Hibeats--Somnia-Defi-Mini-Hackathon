@@ -1,9 +1,9 @@
+/* HiBeats Music DApp Design System */
+@import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@200;300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* HiBeats Music DApp Design System */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @layer base {
   :root {
@@ -45,6 +45,8 @@
     --gradient-secondary: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(260 100% 65%) 100%);
     --gradient-dark: linear-gradient(180deg, hsl(220 15% 12%) 0%, hsl(220 15% 8%) 100%);
     --gradient-glow: linear-gradient(135deg, hsl(85 100% 60% / 0.2) 0%, hsl(280 100% 70% / 0.2) 100%);
+    --gradient-button: linear-gradient(135deg, hsl(85 100% 65%) 0%, hsl(75 100% 60%) 50%, hsl(85 90% 55%) 100%);
+    --gradient-button-hover: linear-gradient(135deg, hsl(85 100% 70%) 0%, hsl(75 100% 65%) 50%, hsl(85 90% 60%) 100%);
 
     /* Music Shadows */
     --shadow-glow: 0 0 40px hsl(85 100% 60% / 0.3);
@@ -55,7 +57,6 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --radius: 12px;
   }
 }
 
@@ -65,12 +66,9 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: hsl(var(--background));
-    background-image: 
-      radial-gradient(circle at 20% 80%, hsl(280 100% 20% / 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, hsl(85 100% 30% / 0.1) 0%, transparent 50%);
+    @apply text-foreground font-sans;
+    font-family: 'Clash Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: transparent;
   }
 
   /* Music Animation Keyframes */
@@ -87,6 +85,61 @@
   @keyframes music-wave {
     0%, 100% { transform: scaleY(1); }
     50% { transform: scaleY(1.5); }
+  }
+
+  @keyframes scroll-right {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes slideUp {
+    0% { 
+      transform: translateY(100%) scale(0.8);
+      opacity: 0;
+    }
+    100% { 
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+
+  .animate-slideUp {
+    animation: slideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+
+  .animate-scroll-right {
+    animation: scroll-right 500s linear infinite;
+  }
+
+  .animate-scroll-right:hover {
+    animation-play-state: paused;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Button Gradient Classes */
+  .bg-gradient-button {
+    background: var(--gradient-button);
+  }
+
+  .hover\:bg-gradient-button-hover:hover {
+    background: var(--gradient-button-hover);
   }
 
   /* Custom Scrollbar */

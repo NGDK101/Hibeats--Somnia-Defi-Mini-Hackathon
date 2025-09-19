@@ -1,3 +1,63 @@
+// Profile and Social Types
+export interface UserProfile {
+  address: string;
+  username: string;
+  displayName: string;
+  bio: string;
+  avatar: string;
+  coverImage: string;
+  website: string;
+  socialLinks: string[];
+  isVerified: boolean;
+  isActive: boolean;
+  createdAt: number;
+  followerCount: number;
+  followingCount: number;
+  trackCount: number;
+  totalPlays: number;
+  totalEarnings: number;
+}
+
+export interface FollowStats {
+  followerCount: number;
+  followingCount: number;
+  isFollowing?: boolean;
+  isFollower?: boolean;
+  followTimestamp?: number;
+}
+
+export enum CreatorLevel {
+  NEWCOMER = "NEWCOMER",
+  RISING = "RISING", 
+  ESTABLISHED = "ESTABLISHED",
+  LEGEND = "LEGEND"
+}
+
+export interface GeneratedTrack {
+  id: string;
+  title: string;
+  artist: string;
+  duration: number;
+  audioUrl: string;
+  imageUrl: string;
+  genre: string[];
+  lyrics?: string;
+  ipfsHash?: string;
+  metadata?: IPFSMetadata;
+  taskId: string;
+  createdAt: string;
+}
+
+export interface SocialActivity {
+  id: string;
+  type: "follow" | "unfollow" | "track_created" | "track_liked" | "playlist_created";
+  user: UserProfile;
+  target?: UserProfile;
+  track?: GeneratedTrack;
+  timestamp: number;
+  metadata?: Record<string, any>;
+}
+
 export interface SunoGenerateRequest {
   prompt: string;
   style?: string;
@@ -11,6 +71,7 @@ export interface SunoGenerateRequest {
   weirdnessConstraint?: number;
   audioWeight?: number;
   callBackUrl?: string;
+  customCoverImage?: string; // Optional custom cover image URL
 }
 
 export interface SunoGenerateResponse {
@@ -68,12 +129,32 @@ export interface IPFSMetadata {
   created_by: string;
   model_used: string;
   generation_date: string;
+  prompt?: string;
+  transaction_hash?: string;
+  task_id?: string;
+  instrumental?: boolean;
+  custom_mode?: boolean;
+  style?: string;
+  title_custom?: string;
+  vocal_gender?: string;
+  negative_tags?: string;
+  style_weight?: number;
+  weirdness_constraint?: number;
+  audio_weight?: number;
 }
 
 export interface PinataResponse {
-  IpfsHash: string;
-  PinSize: number;
-  Timestamp: string;
+  id: string;
+  name: string;
+  cid?: string;
+  IpfsHash?: string; // For backward compatibility
+  size: number;
+  number_of_files: number;
+  mime_type: string;
+  group_id: string | null;
+  created_at: string;
+  PinSize?: number; // For backward compatibility
+  Timestamp?: string; // For backward compatibility
 }
 
 export interface GeneratedMusic {
@@ -83,9 +164,13 @@ export interface GeneratedMusic {
   duration: number;
   audioUrl: string;
   imageUrl: string;
+  originalAudioUrl?: string; // Original URL from Suno for fallback
+  originalImageUrl?: string; // Original URL from Suno for fallback
   genre: string[];
+  lyrics?: string;
   ipfsHash?: string;
   metadata?: IPFSMetadata;
   taskId: string;
   createdAt: string;
+  version?: string; // v1, v2, etc. to distinguish songs with same taskId
 }

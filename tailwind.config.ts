@@ -18,6 +18,10 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'clash': ['Clash Display', 'system-ui', 'sans-serif'],
+				'sans': ['Clash Display', 'system-ui', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -62,7 +66,9 @@ export default {
 				'gradient-primary': 'var(--gradient-primary)',
 				'gradient-secondary': 'var(--gradient-secondary)',
 				'gradient-dark': 'var(--gradient-dark)',
-				'gradient-glow': 'var(--gradient-glow)'
+				'gradient-glow': 'var(--gradient-glow)',
+				'gradient-button': 'var(--gradient-button)',
+				'gradient-button-hover': 'var(--gradient-button-hover)'
 			},
 			boxShadow: {
 				'glow': 'var(--shadow-glow)',
@@ -97,7 +103,8 @@ export default {
 				'float': 'float 3s ease-in-out infinite',
 				'music-wave': 'music-wave 1s ease-in-out infinite',
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'spin-slow': 'spin 20s linear infinite'
 			}
 		}
 	},
