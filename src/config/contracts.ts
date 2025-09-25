@@ -1,0 +1,68 @@
+import { 
+  HIBEATS_FACTORY_ABI,
+  HIBEATS_NFT_ABI,
+  HIBEATS_TOKEN_ABI,
+  HIBEATS_MARKETPLACE_ABI,
+  HIBEATS_PROFILE_ABI,
+  HIBEATS_ROYALTIES_ABI,
+  HIBEATS_PLAYLIST_ABI,
+  HIBEATS_STAKING_ABI,
+  HIBEATS_ANALYTICS_ABI,
+  HIBEATS_DISCOVERY_ABI,
+  HIBEATS_GOVERNANCE_ABI,
+  HIBEATS_INTERACTION_MANAGER_ABI,
+  CONTRACT_ADDRESSES
+} from '@/contracts';
+
+export const contracts = {
+  HiBeatsFactory: {
+    address: CONTRACT_ADDRESSES.HIBEATS_FACTORY,
+    abi: HIBEATS_FACTORY_ABI,
+  },
+  HiBeatsNFT: {
+    address: CONTRACT_ADDRESSES.HIBEATS_NFT,
+    abi: HIBEATS_NFT_ABI,
+  },
+  HiBeatsToken: {
+    address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
+    abi: HIBEATS_TOKEN_ABI,
+  },
+  HiBeatsMarketplace: {
+    address: CONTRACT_ADDRESSES.HIBEATS_MARKETPLACE,
+    abi: HIBEATS_MARKETPLACE_ABI,
+  },
+  HiBeatsProfile: {
+    address: CONTRACT_ADDRESSES.HIBEATS_PROFILE,
+    abi: HIBEATS_PROFILE_ABI,
+  },
+  HiBeatsRoyalties: {
+    address: CONTRACT_ADDRESSES.HIBEATS_ROYALTIES,
+    abi: HIBEATS_ROYALTIES_ABI,
+  },
+  HiBeatsPlaylist: {
+    address: CONTRACT_ADDRESSES.HIBEATS_PLAYLIST,
+    abi: HIBEATS_PLAYLIST_ABI,
+  },
+  HiBeatsStaking: {
+    address: CONTRACT_ADDRESSES.HIBEATS_STAKING,
+    abi: HIBEATS_STAKING_ABI,
+  },
+  HiBeatsAnalytics: {
+    address: CONTRACT_ADDRESSES.HIBEATS_ANALYTICS,
+    abi: HIBEATS_ANALYTICS_ABI,
+  },
+  HiBeatsDiscovery: {
+    address: CONTRACT_ADDRESSES.HIBEATS_DISCOVERY,
+    abi: HIBEATS_DISCOVERY_ABI,
+  },
+  HiBeatsGovernance: {
+    address: CONTRACT_ADDRESSES.HIBEATS_GOVERNANCE,
+    abi: HIBEATS_GOVERNANCE_ABI,
+  },
+  HiBeatsInteractionManager: {
+    address: CONTRACT_ADDRESSES.HIBEATS_INTERACTION_MANAGER,
+    abi: HIBEATS_INTERACTION_MANAGER_ABI,
+  },
+} as const;
+
+export type ContractName = keyof typeof contracts;

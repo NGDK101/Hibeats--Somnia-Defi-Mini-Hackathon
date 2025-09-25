@@ -1,0 +1,129 @@
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Play, Eye, Heart, Clock } from 'lucide-react';
+import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
+import { useNFTMetadata } from '@/hooks/useNFTMetadata-optimized';
+
+interface TrackCardProps {
+  track: any;
+  onPlay: (track: any) => void;
+}
+
+export const TrackCard: React.FC<TrackCardProps> = ({ track, onPlay }) => {
+  const tokenId = track.tokenId || track.id || 0;
+  const { metadata, isLoading, error } = useNFTMetadata(tokenId);
+
+  // Extract track info
+  const trackTitle = metadata?.name || track.title || track.aiTrackId || `Track #${tokenId}`;
+  const trackArtist = metadata?.artist || track.artist || track.creator || 'Unknown Artist';
+  const trackGenre = metadata?.genre || track.genre || 'Unknown';
+  const trackImage = metadata?.image || track.imageUrl || track.thumbnail || '/api/placeholder/300/200';
+  const trackDuration = metadata?.duration || track.duration || '0:00';
+  const trackPlays = track.plays || track.playCount || 0;
+  const trackLikes = track.likes || track.likeCount || 0;
+  const trackUploadedAt = track.uploadedAt || track.createdAt || track.timestamp;
+  const trackPrice = track.price || track.listingPrice || null;
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  };
+
+  const formatUploadDate = (timestamp: any) => {
+    if (!timestamp) return 'Recently';
+    const date = new Date(Number(timestamp) * 1000);
+    const now = new Date();
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return '1 day ago';
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    return `${Math.floor(diffInDays / 30)} months ago`;
+  };
+
+  return (
+    <div className="group bg-white/5 rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all duration-300 hover:bg-white/10 cursor-pointer">
+      {/* Track Thumbnail */}
+      <div className="relative aspect-video overflow-hidden">
+        {isLoading ? (
+          <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <ImageWithFallback
+            src={trackImage}
+            alt={trackTitle}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onLoad={() => console.log('🖼️ Track image loaded:', trackTitle)}
+            onError={() => console.error('❌ Failed to load track image:', trackTitle)}
+          />
+        )}
+
+        {/* Play Button Overlay */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <Button
+            size="lg"
+            className="rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30"
+            onClick={() => onPlay(track)}
+          >
+            <Play className="w-6 h-6" />
+          </Button>
+        </div>
+
+        {/* Duration Badge */}
+        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+          {trackDuration}
+        </div>
+
+        {/* Price Badge if available */}
+        {trackPrice && (
+          <div className="absolute top-2 left-2 bg-primary/90 text-black text-xs px-2 py-1 rounded font-medium">
+            {Number(trackPrice) / 1e18} STT
+          </div>
+        )}
+
+        {/* Loading/Error Badges */}
+        {isLoading && (
+          <div className="absolute top-2 right-2 bg-blue-600/90 text-white text-xs px-2 py-1 rounded">
+            Loading...
+          </div>
+        )}
+        {error && !isLoading && (
+          <div className="absolute top-2 right-2 bg-red-600/90 text-white text-xs px-2 py-1 rounded">
+            ⚠️
+          </div>
+        )}
+      </div>
+
+      {/* Track Info */}
+      <div className="p-4 space-y-3">
+        <h3 className="text-white font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+          {trackTitle}
+        </h3>
+
+        <p className="text-white/60 text-sm">{trackArtist}</p>
+
+        <div className="flex items-center justify-between text-sm text-white/60">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1">
+              <Eye className="w-4 h-4" />
+              <span>{formatNumber(Number(trackPlays))}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Heart className="w-4 h-4" />
+              <span>{formatNumber(Number(trackLikes))}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <Clock className="w-4 h-4" />
+            <span>{formatUploadDate(trackUploadedAt)}</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,409 @@
+import { NotificationData, CreateNotificationParams, NotificationSettings } from '@/types/notifications';
+import { socialIPFSService } from './socialIPFSService';
+import { SongInteraction } from '@/types/music';
+
+const SETTINGS_KEY = 'hibeats_notification_settings';
+const NOTIFICATION_CHECK_INTERVAL = 30000; // 30 seconds
+
+interface UserNotificationData {
+  userAddress: string;
+  notifications: NotificationData[];
+  lastChecked: number;
+  version: number;
+}
+
+interface NotificationCache {
+  data: NotificationData[];
+  lastSync: number;
+  lastProcessedInteractions: Map<string, number>; // songId -> lastTimestamp
+}
+
+class IPFSNotificationService {
+  private listeners: Set<(notifications: NotificationData[]) => void> = new Set();
+  private cache: Map<string, NotificationCache> = new Map();
+  private checkInterval: NodeJS.Timeout | null = null;
+  private isInitialized = false;
+  private currentUserAddress: string | null = null;
+
+  /**
+   * Initialize IPFS notification service for a user
+   */
+  async initialize(userAddress: string): Promise<void> {
+    if (this.isInitialized && this.currentUserAddress === userAddress) return;
+
+    this.cleanup();
+    this.currentUserAddress = userAddress;
+
+    // Load existing notifications and start monitoring
+    await this.loadNotificationsFromIPFS(userAddress);
+    this.startIPFSMonitoring(userAddress);
+    this.isInitialized = true;
+
+    // console.log(`🔔 IPFS Notification service initialized for ${userAddress}`);
+  }
+
+  /**
+   * Cleanup when user disconnects
+   */
+  cleanup(): void {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+    this.listeners.clear();
+    this.isInitialized = false;
+    this.currentUserAddress = null;
+  }
+
+  /**
+   * Subscribe to notification updates
+   */
+  subscribe(callback: (notifications: NotificationData[]) => void): () => void {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  }
+
+  /**
+   * Get notifications for current user
+   */
+  async getNotifications(userAddress: string): Promise<NotificationData[]> {
+    const cacheKey = userAddress.toLowerCase();
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.lastSync < 60000) { // 1 minute cache
+      return cached.data;
+    }
+
+    return await this.loadNotificationsFromIPFS(userAddress);
+  }
+
+  /**
+   * Load notifications by scanning IPFS social interactions
+   */
+  private async loadNotificationsFromIPFS(userAddress: string): Promise<NotificationData[]> {
+    try {
+      const cacheKey = userAddress.toLowerCase();
+      const notifications: NotificationData[] = [];
+      const lastProcessedInteractions = new Map<string, number>();
+
+      // Get all songs that user owns to check for interactions
+      const userSongs = await this.getUserOwnedSongs(userAddress);
+
+      for (const song of userSongs) {
+        try {
+          // Load interactions for each song
+          const interactions = await socialIPFSService.loadSongInteractions(song.id);
+          const lastProcessed = this.cache.get(cacheKey)?.lastProcessedInteractions.get(song.id) || 0;
+
+          // Process new likes
+          const newLikes = interactions.likes.filter(like =>
+            like.timestamp > lastProcessed &&
+            like.userAddress !== userAddress
+          );
+
+          for (const like of newLikes) {
+            notifications.push(this.createLikeNotification(like, song));
+          }
+
+          // Process new comments
+          const newComments = interactions.comments.filter(comment =>
+            comment.timestamp > lastProcessed &&
+            comment.userAddress !== userAddress &&
+            !comment.parentId // Only direct comments, not replies
+          );
+
+          for (const comment of newComments) {
+            notifications.push(this.createCommentNotification(comment, song));
+          }
+
+          // Update last processed timestamp
+          const latestTimestamp = Math.max(
+            ...interactions.likes.map(l => l.timestamp),
+            ...interactions.comments.map(c => c.timestamp),
+            lastProcessed
+          );
+          lastProcessedInteractions.set(song.id, latestTimestamp);
+
+        } catch (error) {
+          // console.warn(`Failed to load interactions for song ${song.id}:`, error);
+        }
+      }
+
+      // Sort notifications by timestamp (newest first)
+      notifications.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Update cache
+      this.cache.set(cacheKey, {
+        data: notifications,
+        lastSync: Date.now(),
+        lastProcessedInteractions
+      });
+
+      // console.log(`📬 Loaded ${notifications.length} notifications from IPFS for ${userAddress}`);
+      return notifications;
+
+    } catch (error) {
+      console.error('Error loading notifications from IPFS:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get user's owned songs (stub - implement based on your NFT/song ownership logic)
+   */
+  private async getUserOwnedSongs(userAddress: string): Promise<Array<{id: string, title: string}>> {
+    // TODO: Implement this based on your NFT contract or song ownership system
+    // For now, we'll check a registry in localStorage as a fallback
+    try {
+      const registry = localStorage.getItem('hibeats_user_songs_registry');
+      if (registry) {
+        const parsed = JSON.parse(registry);
+        return parsed[userAddress.toLowerCase()] || [];
+      }
+    } catch (error) {
+      // console.warn('Error loading user songs registry:', error);
+    }
+
+    return [];
+  }
+
+  /**
+   * Register a song as owned by user (call this when minting/creating songs)
+   */
+  registerUserSong(userAddress: string, songId: string, songTitle: string): void {
+    try {
+      let registry: Record<string, Array<{id: string, title: string}>> = {};
+
+      const existing = localStorage.getItem('hibeats_user_songs_registry');
+      if (existing) {
+        registry = JSON.parse(existing);
+      }
+
+      const userKey = userAddress.toLowerCase();
+      if (!registry[userKey]) {
+        registry[userKey] = [];
+      }
+
+      // Add song if not already exists
+      if (!registry[userKey].find(song => song.id === songId)) {
+        registry[userKey].push({ id: songId, title: songTitle });
+        localStorage.setItem('hibeats_user_songs_registry', JSON.stringify(registry));
+        // console.log(`📝 Registered song ${songId} for user ${userAddress}`);
+      }
+    } catch (error) {
+      console.error('Error registering user song:', error);
+    }
+  }
+
+  /**
+   * Start monitoring IPFS for new interactions
+   */
+  private startIPFSMonitoring(userAddress: string): void {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+    }
+
+    this.checkInterval = setInterval(async () => {
+      try {
+        const notifications = await this.loadNotificationsFromIPFS(userAddress);
+        this.notifyListeners(notifications);
+      } catch (error) {
+        console.error('Error in IPFS notification monitoring:', error);
+      }
+    }, NOTIFICATION_CHECK_INTERVAL);
+
+    // console.log(`🔍 Started IPFS monitoring for ${userAddress}`);
+  }
+
+  /**
+   * Create notification from like interaction
+   */
+  private createLikeNotification(like: any, song: {id: string, title: string}): NotificationData {
+    return {
+      id: `like_${like.id}`,
+      type: 'like',
+      title: 'New Like',
+      message: `${this.formatUsername(like.userAddress)} liked your song "${song.title}"`,
+      timestamp: like.timestamp,
+      isRead: false,
+      fromUser: {
+        address: like.userAddress,
+        username: this.formatUsername(like.userAddress),
+      },
+      toUser: this.currentUserAddress!,
+      metadata: {
+        songId: song.id,
+        songTitle: song.title,
+      },
+      actionUrl: `/song/${song.id}`
+    };
+  }
+
+  /**
+   * Create notification from comment interaction
+   */
+  private createCommentNotification(comment: any, song: {id: string, title: string}): NotificationData {
+    return {
+      id: `comment_${comment.id}`,
+      type: 'comment',
+      title: 'New Comment',
+      message: `${this.formatUsername(comment.userAddress)} commented on your song "${song.title}"`,
+      timestamp: comment.timestamp,
+      isRead: false,
+      fromUser: {
+        address: comment.userAddress,
+        username: comment.username || this.formatUsername(comment.userAddress),
+      },
+      toUser: this.currentUserAddress!,
+      metadata: {
+        songId: song.id,
+        songTitle: song.title,
+        commentId: comment.id,
+        commentText: comment.comment?.slice(0, 100),
+      },
+      actionUrl: `/song/${song.id}`
+    };
+  }
+
+  /**
+   * Format username for display
+   */
+  private formatUsername(address: string): string {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  }
+
+  /**
+   * Mark notifications as read (store in localStorage for now)
+   */
+  async markAsRead(userAddress: string, notificationIds: string[]): Promise<boolean> {
+    try {
+      const readKey = `hibeats_read_notifications_${userAddress.toLowerCase()}`;
+      let readNotifications: Set<string> = new Set();
+
+      try {
+        const existing = localStorage.getItem(readKey);
+        if (existing) {
+          readNotifications = new Set(JSON.parse(existing));
+        }
+      } catch (error) {
+        // console.warn('Error loading read notifications:', error);
+      }
+
+      // Add new read notifications
+      notificationIds.forEach(id => readNotifications.add(id));
+
+      // Save back to localStorage
+      localStorage.setItem(readKey, JSON.stringify([...readNotifications]));
+
+      // Update cache
+      const cacheKey = userAddress.toLowerCase();
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        cached.data = cached.data.map(notification => ({
+          ...notification,
+          isRead: readNotifications.has(notification.id) || notification.isRead
+        }));
+        this.notifyListeners(cached.data);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark all notifications as read
+   */
+  async markAllAsRead(userAddress: string): Promise<boolean> {
+    const notifications = await this.getNotifications(userAddress);
+    const allIds = notifications.map(n => n.id);
+    return this.markAsRead(userAddress, allIds);
+  }
+
+  /**
+   * Get unread count
+   */
+  async getUnreadCount(userAddress: string): Promise<number> {
+    try {
+      const readKey = `hibeats_read_notifications_${userAddress.toLowerCase()}`;
+      const readNotifications = new Set<string>();
+
+      try {
+        const existing = localStorage.getItem(readKey);
+        if (existing) {
+          JSON.parse(existing).forEach((id: string) => readNotifications.add(id));
+        }
+      } catch (error) {
+        // console.warn('Error loading read notifications:', error);
+      }
+
+      const notifications = await this.getNotifications(userAddress);
+      return notifications.filter(n => !readNotifications.has(n.id)).length;
+    } catch (error) {
+      console.error('Error getting unread count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get notification settings
+   */
+  getSettings(): NotificationSettings {
+    try {
+      const stored = localStorage.getItem(SETTINGS_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+    }
+
+    return {
+      likes: true,
+      comments: true,
+      follows: true,
+      songMentions: true,
+      playlistAdds: true,
+      emailNotifications: false,
+      pushNotifications: true
+    };
+  }
+
+  /**
+   * Update notification settings
+   */
+  updateSettings(settings: NotificationSettings): void {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+    }
+  }
+
+  /**
+   * Force refresh notifications from IPFS
+   */
+  async refreshNotifications(userAddress: string): Promise<void> {
+    // Clear cache to force reload
+    this.cache.delete(userAddress.toLowerCase());
+    const notifications = await this.loadNotificationsFromIPFS(userAddress);
+    this.notifyListeners(notifications);
+  }
+
+  /**
+   * Notify all listeners of notification updates
+   */
+  private notifyListeners(notifications: NotificationData[]): void {
+    this.listeners.forEach(callback => {
+      try {
+        callback(notifications);
+      } catch (error) {
+        console.error('Error notifying listener:', error);
+      }
+    });
+  }
+}
+
+export const ipfsNotificationService = new IPFSNotificationService();

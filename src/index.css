@@ -1,0 +1,309 @@
+/* HiBeats Music DApp Design System */
+@import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@200;300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Music DApp Dark Theme */
+    --background: 220 15% 8%;
+    --foreground: 210 40% 95%;
+
+    /* Glassmorphism Cards */
+    --card: 220 15% 12%;
+    --card-foreground: 210 40% 95%;
+    --glass: 220 15% 15%;
+    --glass-border: 220 20% 25%;
+
+    /* Music Brand Colors */
+    --primary: 85 100% 60%;  /* HiBeats Green */
+    --primary-foreground: 220 15% 8%;
+    --primary-glow: 85 100% 70%;
+
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 40% 85%;
+
+    /* Music UI States */
+    --muted: 220 15% 16%;
+    --muted-foreground: 220 10% 65%;
+
+    --accent: 280 100% 70%;  /* Purple accent for premium */
+    --accent-foreground: 210 40% 95%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Interactive Elements */
+    --border: 220 20% 20%;
+    --input: 220 15% 16%;
+    --ring: 85 100% 60%;
+
+    /* Music Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(85 100% 60%) 0%, hsl(85 80% 55%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(260 100% 65%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(220 15% 12%) 0%, hsl(220 15% 8%) 100%);
+    --gradient-glow: linear-gradient(135deg, hsl(85 100% 60% / 0.2) 0%, hsl(280 100% 70% / 0.2) 100%);
+    --gradient-button: linear-gradient(135deg, hsl(85 100% 65%) 0%, hsl(75 100% 60%) 50%, hsl(85 90% 55%) 100%);
+    --gradient-button-hover: linear-gradient(135deg, hsl(85 100% 70%) 0%, hsl(75 100% 65%) 50%, hsl(85 90% 60%) 100%);
+
+    /* Loading Animation Variables */
+    --loading-primary: hsl(85 100% 60%);
+    --loading-secondary: hsl(280 100% 70%);
+    --loading-tertiary: hsl(260 100% 65%);
+
+    /* Music Shadows */
+    --shadow-glow: 0 0 40px hsl(85 100% 60% / 0.3);
+    --shadow-card: 0 8px 32px hsl(220 15% 4% / 0.6);
+    --shadow-elevated: 0 16px 64px hsl(220 15% 4% / 0.8);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply text-foreground font-sans;
+    font-family: 'Clash Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: transparent;
+  }
+
+  /* Music Animation Keyframes */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px hsl(85 100% 60% / 0.3); }
+    50% { box-shadow: 0 0 40px hsl(85 100% 60% / 0.6); }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes music-wave {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.5); }
+  }
+
+  @keyframes scroll-right {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes slideUp {
+    0% { 
+      transform: translateY(100%) scale(0.8);
+      opacity: 0;
+    }
+    100% { 
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+
+  .animate-slideUp {
+    animation: slideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+
+  .animate-scroll-right {
+    animation: scroll-right 500s linear infinite;
+  }
+
+  .animate-scroll-right:hover {
+    animation-play-state: paused;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Button Gradient Classes */
+  .bg-gradient-button {
+    background: var(--gradient-button);
+  }
+
+  .hover\:bg-gradient-button-hover:hover {
+    background: var(--gradient-button-hover);
+  }
+
+  /* Custom Scrollbar - More subtle design */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(220 15% 35%); /* More subtle gray instead of bright green */
+    border-radius: 3px;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 15% 45%); /* Lighter gray on hover */
+  }
+
+  /* NFT Modal specific scrollbar styling */
+  .nft-modal-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .nft-modal-scrollbar::-webkit-scrollbar-track {
+    background: hsl(220 15% 12%); /* Match modal background */
+    border-radius: 2px;
+  }
+
+  .nft-modal-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(220 15% 25%); /* Darker gray for modal */
+    border-radius: 2px;
+    transition: background 0.2s ease;
+  }
+
+  .nft-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 15% 35%); /* Slightly lighter on hover */
+  }
+
+  /* Library panel and general list scrollbars */
+  .library-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .library-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .library-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(220 15% 30%);
+    border-radius: 2px;
+    transition: background 0.2s ease;
+  }
+
+  .library-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 15% 40%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Loading Animations */
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.05);
+  }
+}
+
+@keyframes smoothSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes waveAnimation {
+  0%, 100% {
+    height: 16px;
+    opacity: 0.4;
+  }
+  50% {
+    height: 32px;
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Animation delay utilities */
+.animation-delay-0 {
+  animation-delay: 0ms;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+.animation-delay-500 {
+  animation-delay: 500ms;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1000ms;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2000ms;
+}
+
+/* Loading component specific styles */
+.loading-logo {
+  animation: logoFloat 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.3));
+}
+
+.loading-spin {
+  animation: smoothSpin 2s linear infinite;
+}
+
+.loading-wave {
+  animation: waveAnimation 1s ease-in-out infinite;
+}

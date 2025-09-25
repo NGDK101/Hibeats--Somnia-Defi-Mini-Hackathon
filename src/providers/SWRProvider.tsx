@@ -1,0 +1,45 @@
+import { ReactNode } from 'react';
+import { SWRConfig } from 'swr';
+
+interface SWRProviderProps {
+  children: ReactNode;
+}
+
+// SWR Configuration for HiBeats
+const swrConfig = {
+  // Cache settings
+  dedupingInterval: 30000, // 30 seconds
+  focusThrottleInterval: 5000, // 5 seconds
+  
+  // Error handling
+  errorRetryCount: 3,
+  errorRetryInterval: 5000,
+  
+  // Network optimization
+  revalidateOnFocus: false,
+  revalidateOnReconnect: true,
+  revalidateIfStale: true,
+  
+  // Background revalidation
+  refreshInterval: 60000, // 1 minute for blockchain data
+  
+  // Global error handler
+  onError: (error: any) => {
+    console.error('SWR Error:', error);
+    // Could integrate with toast or error tracking here
+  },
+  
+  // Global loading state
+  onLoadingSlow: () => {
+  }
+};
+
+export const SWRProvider = ({ children }: SWRProviderProps) => {
+  return (
+    <SWRConfig value={swrConfig}>
+      {children}
+    </SWRConfig>
+  );
+};
+
+export default SWRProvider;

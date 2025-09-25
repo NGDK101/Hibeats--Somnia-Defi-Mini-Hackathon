@@ -1,0 +1,148 @@
+# 🎵 HiBeats – AI-Powered Music NFT Platform  
+
+![Built on Somnia](https://img.shields.io/badge/Built%20on-Somnia-blueviolet?style=for-the-badge&logo=ethereum)  
+![AI Powered](https://img.shields.io/badge/AI-Powered-lightblue?style=for-the-badge&logo=openai)  
+![License MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)  
+![Status](https://img.shields.io/badge/Status-Production%20Ready-success?style=for-the-badge)  
+
+> **HiBeats** is a Web3 music platform built on **Somnia Blockchain**, integrating **Suno AI** for music generation and a complete NFT marketplace ecosystem. It empowers creators, collectors, and fans with true ownership, seamless monetization, and innovative AI-driven music experiences.  
+
+---
+
+## 🌟 What We Built  
+
+HiBeats revolutionizes the music industry by combining **AI music generation** with a **full-featured Web3 marketplace**.  
+From generating professional tracks to minting NFTs and trading them — all happens seamlessly on-chain.  
+
+---
+
+## ✨ Key Features  
+
+### 🤖 AI Music Generation  
+- **Suno AI Integration**: Generate professional music from text prompts  
+- **Multiple Models**: V3.5, V4, V4.5 supported  
+- **Advanced Controls**: Styles, instrumental mode, vocal gender selection  
+- **Daily Limits**: 3 generations per user per day  
+- **Instant NFT Minting**: Generated tracks become tradeable NFTs  
+
+### 🏪 Marketplace  
+- **Dual Currency**: STT & BEATS token support  
+- **Auction System**: Time-based bidding, auto settlement  
+- **Fixed Price Sales**: Instant buy options  
+- **Royalties**: Automatic 0–10% creator royalties  
+- **Discovery**: Genre-based browsing, advanced search  
+
+### 💰 Token Economy  
+- **BEATS Token (ERC-20)** utility token  
+- **Rewards**: 10 BEATS per generation, 0.001 BEATS per minute of listening  
+- **Staking System** for additional yield  
+- **Royalty Payments** for ongoing creator income  
+
+### 👤 Social Features  
+- Customizable **user profiles**  
+- **Follow system** for community building  
+- **Playlists** & sharing  
+- Smart **discovery engine**  
+
+---
+
+## 🔧 Technical Infrastructure  
+
+- **12 Smart Contracts** deployed on Somnia Testnet  
+- **IPFS + Pinata** for decentralized storage  
+- **React Frontend** with TypeScript, Tailwind, Shadcn/UI  
+- **WalletConnect** integration  
+- **Real-time updates** for generation & marketplace  
+
+---
+
+## 🛠 Tech Stack  
+
+- **Blockchain**: Somnia Testnet, Solidity ^0.8.20, OpenZeppelin  
+- **Web3**: Ethers.js, Wagmi, RainbowKit  
+- **AI**: Suno AI API (music generation)  
+- **Storage**: IPFS / Pinata  
+- **Frontend**: React 18, TypeScript, TailwindCSS, Shadcn/UI, Vite  
+
+---
+
+## 🌟 Innovation Points  
+
+- **AI-to-NFT Pipeline**: First seamless music generation → NFT minting  
+- **Dual Token Economy**: STT + BEATS integration  
+- **Creator-First**: Built-in royalties for fair monetization  
+- **Gamified Experience**: Rewards for creating & listening  
+- **Social Discovery**: Music marketplace + social networking  
+
+---
+
+## 📊 Smart Contract Architecture  
+
+| Contract              | Address                                                                 |
+|-----------------------|-------------------------------------------------------------------------|
+| 🎶 HiBeatsToken       | `0xf56748FF80fc515098AB8352bAFBe5B6136B9E16`                            |
+| 🎵 HiBeatsNFT         | `0xD443EB74ac859eB5C2Bb190087b087A5B292f433`                            |
+| 🏪 Marketplace        | `0x191b8618e6FF7135998F233584880Ed08144B1fD`                            |
+| 🏭 Factory            | `0xC334157d23489C4C0a6c0204f523fCEd090e8465`                            |
+| 👤 Profile            | `0x660ca3bcD820503DEA255A884FD139b7e0b92cA5`                            |
+| 💸 Royalties          | `0x48e0B5b32d0F687C0EE1a7FFd472f0c76812D2f5`                            |
+| 🎧 Playlist           | `0x13185568f7D2e3eE39B69dFe45ab1a689F37E615`                            |
+| 💎 Staking            | `0x3b1986926419472875324dEC8F04b81EF5Da600c`                            |
+| 🔍 Discovery          | `0x05c9961DEad527cE79C7daA1DDf202cee81f629b`                            |
+| 📊 Analytics          | `0xDA9650203089c316A922D24994601cf7b466Ca8c`                            |
+| 🤝 Interaction        | `0xED078A95C693FbA7De46f1DF9A82d083A3c6A076`                            |
+| 🗳 Governance         | `0xf8A073b5C4C502B0B9bd47977402a3a992A59e34`                            |
+
+---
+
+## 🎯 Target Market & Use Cases  
+
+- **Creators** → AI-powered track generation + royalties  
+- **Collectors** → Exclusive music NFTs & investments  
+- **Fans** → Discover and own music in new ways  
+- **Developers** → Explore AI + Web3 integrations  
+
+**Applications:** Content creation, investment, collections, education  
+
+---
+
+## 🚀 Status & Roadmap  
+
+✅ **Current**  
+- Full smart contract deployment  
+- Suno AI integration (production-ready)  
+- Marketplace (auctions + fixed sales)  
+- Token economy with staking  
+- Responsive frontend + profiles  
+
+🔄 **Next Phase**  
+- Mobile app (iOS/Android)  
+- Cross-chain bridge  
+- Advanced AI controls  
+- Creator analytics dashboard  
+- Governance & DAO  
+- Streaming platform integration  
+
+---
+
+## 👥 Developers
+
+**Bayu Mukti Wibowo**  
+Builders passionate about **Web3 + AI + Music**.  
+I created HiBeats to show how blockchain and AI together can reshape music ownership, discovery, and monetization.  
+
+---
+
+## 📚 Documentation & Resources  
+
+- 📖 [Website](https://www.hibeats.fun/) *(example placeholder, update if live)*  
+- 📑 [HiBeats Pitch Deck](#)  
+- 🎥 [Demo Video](#)  
+
+---
+
+## 📖 License  
+
+MIT License  
+
+

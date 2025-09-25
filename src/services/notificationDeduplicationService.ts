@@ -1,0 +1,101 @@
+/**
+ * Service to prevent duplicate success notifications for music generation
+ * This ensures that completion alerts are shown only once per task
+ */
+
+class NotificationDeduplicationService {
+  private shownNotifications: Set<string> = new Set();
+  private readonly NOTIFICATION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+  private timeouts: Map<string, NodeJS.Timeout> = new Map();
+
+  /**
+   * Check if a notification should be shown for a given task
+   * @param taskId - The task ID
+   * @param notificationType - Type of notification (e.g., 'completion', 'manual-check')
+   * @returns true if notification should be shown, false if already shown
+   */
+  shouldShowNotification(taskId: string, notificationType: string = 'completion'): boolean {
+    const key = `${notificationType}-${taskId}`;
+
+    if (this.shownNotifications.has(key)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Mark a notification as shown
+   * @param taskId - The task ID
+   * @param notificationType - Type of notification
+   */
+  markAsShown(taskId: string, notificationType: string = 'completion'): void {
+    const key = `${notificationType}-${taskId}`;
+    this.shownNotifications.add(key);
+
+    // Auto-clear after timeout to prevent memory leaks
+    const existingTimeout = this.timeouts.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      this.shownNotifications.delete(key);
+      this.timeouts.delete(key);
+    }, this.NOTIFICATION_TIMEOUT);
+
+    this.timeouts.set(key, timeout);
+  }
+
+  /**
+   * Manually clear a notification (useful for testing)
+   * @param taskId - The task ID
+   * @param notificationType - Type of notification
+   */
+  clearNotification(taskId: string, notificationType: string = 'completion'): void {
+    const key = `${notificationType}-${taskId}`;
+    this.shownNotifications.delete(key);
+
+    const existingTimeout = this.timeouts.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      this.timeouts.delete(key);
+    }
+
+  }
+
+  /**
+   * Get all currently blocked notifications (for debugging)
+   */
+  getBlockedNotifications(): string[] {
+    return Array.from(this.shownNotifications);
+  }
+
+  /**
+   * Clear all notifications (for debugging/testing)
+   */
+  clearAll(): void {
+    this.shownNotifications.clear();
+
+    // Clear all timeouts
+    this.timeouts.forEach(timeout => clearTimeout(timeout));
+    this.timeouts.clear();
+
+  }
+
+  /**
+   * Check if a specific notification is blocked
+   * @param taskId - The task ID
+   * @param notificationType - Type of notification
+   */
+  isBlocked(taskId: string, notificationType: string = 'completion'): boolean {
+    const key = `${notificationType}-${taskId}`;
+    return this.shownNotifications.has(key);
+  }
+}
+
+// Export singleton instance
+export const notificationDeduplicationService = new NotificationDeduplicationService();
+
+// Export the class for testing
+export { NotificationDeduplicationService };
