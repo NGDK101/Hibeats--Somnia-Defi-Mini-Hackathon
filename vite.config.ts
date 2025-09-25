@@ -10,6 +10,13 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     strictPort: false, // Allow port fallback if 8080 is busy
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
   plugins: [
     react(),
     mode === 'development' &&
