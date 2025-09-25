@@ -1,5 +1,6 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { Chain } from 'viem';
+import { createStorage } from 'wagmi';
 
 // Somnia Testnet Configuration
 const somniaTestnet: Chain = {
@@ -32,9 +33,20 @@ export const config = getDefaultConfig({
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '3edb0ee565402a16259f5dabb5c427ff',
   chains: [somniaTestnet],
   ssr: false,
-  walletConnectOptions: {
-    projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '3edb0ee565402a16259f5dabb5c427ff',
+  // Add persistent storage configuration
+  storage: createStorage({
+    storage: typeof window !== 'undefined' ? localStorage : undefined,
+    key: 'hibeats.wallet',
+  }),
+  // Optimized batch settings untuk faster transactions
+  batch: {
+    multicall: {
+      wait: 32, // Increase wait time untuk batch transactions
+      batchSize: 512, // Reduce batch size untuk stability
+    },
   },
+  // Reduce polling untuk better performance
+  pollingInterval: 12_000, // 12 seconds instead of 4
 });
 
 // Contract Addresses

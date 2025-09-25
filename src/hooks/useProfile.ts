@@ -278,6 +278,23 @@ export function useProfile() {
     }
   }, [error]);
 
+  // Force refresh all profile data
+  const forceRefresh = async () => {
+    try {
+      console.log('🔄 Force refreshing profile data...');
+      await Promise.all([
+        refetchProfile(),
+        refetchStats(),
+        refetchCollection(),
+        refetchFollowers(),
+        refetchFollowing()
+      ]);
+      console.log('✅ Profile data force refreshed');
+    } catch (error) {
+      console.error('❌ Force refresh failed:', error);
+    }
+  };
+
   return {
     // Actions
     createProfile,
@@ -302,5 +319,8 @@ export function useProfile() {
     isLoading: isLoading || isPending || isConfirming,
     hash,
     error,
+    
+    // Utils
+    forceRefresh,
   };
 }

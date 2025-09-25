@@ -99,7 +99,8 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
     hash: profileTxHash,
     isLoading: profileLoading,
     error: profileError,
-    profileExists: hasProfileFromContract
+    profileExists: hasProfileFromContract,
+    forceRefresh: forceRefreshProfile
   } = useProfile();
   const { address } = useAccount();
   const nftManager = useNFTManager();
@@ -781,11 +782,49 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
     }
   };
 
-  // Handle profile creation with data refresh
+  // Handle profile creation with immediate refresh
   const handleProfileCreation = async (profileData: any) => {
     try {
-      // Create profile using the useProfile hook
-      await createProfile(profileData);
+      console.log('🚀 Profile created, starting refresh:', profileData);
+      
+      // PROFILE ALREADY CREATED in SocialProfileHeader - no need to create again
+      // Just do the refresh logic here
+      
+      // Force immediate profile data refresh after successful creation
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Refreshing profile data after creation...');
+          
+          // Use the hook's force refresh method
+          await forceRefreshProfile();
+          
+          // Also refresh social profile data
+          await refreshProfileData();
+          
+          // Additional refresh after delay to catch blockchain updates
+          setTimeout(async () => {
+            await forceRefreshProfile();
+            await refreshProfileData();
+            console.log('✅ Profile data refreshed successfully');
+            
+            toast.success('🎉 Profile is now live and ready!', {
+              description: 'Your profile has been created and updated successfully.'
+            });
+          }, 2000);
+          
+        } catch (refreshError) {
+          console.error('❌ Profile refresh after creation failed:', refreshError);
+          
+          // If refresh fails, suggest page reload to user
+          toast.info('Profile created! Please refresh the page to see changes.', {
+            action: {
+              label: 'Refresh',
+              onClick: () => window.location.reload()
+            }
+          });
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error('❌ Profile creation error:', error);
       throw error; // Re-throw so overlay can handle the error
@@ -1012,7 +1051,7 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
           isOwnProfile={true}
           hasProfile={hasProfileFromContract}
           onProfileUpdate={handleProfileUpdate}
-          onProfileCreate={createProfile}
+          onProfileCreate={handleProfileCreation}
         />
 
 

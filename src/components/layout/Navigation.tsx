@@ -31,6 +31,7 @@ interface NavigationProps {
 export const Navigation = ({ activeTab, onTabChange, className, onNavigationStart }: NavigationProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRewardPanelOpen, setIsRewardPanelOpen] = useState(false);
+  const [isProfileDataStable, setIsProfileDataStable] = useState(false);
   const { balance, tokenSymbol, forceRefreshBalance } = useToken();
   const { address } = useAccount();
   const location = useLocation();
@@ -56,6 +57,20 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
       getUserStats();
     }
   }, [address, getUserStats]);
+
+  // Stabilize profile data to prevent flicker
+  useEffect(() => {
+    if (address) {
+      // Wait for profile data to potentially load
+      const timer = setTimeout(() => {
+        setIsProfileDataStable(true);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setIsProfileDataStable(false);
+    }
+  }, [address]);
 
   // Handle daily reward claim
   const handleClaimDaily = useCallback(async () => {
@@ -146,8 +161,10 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
     creatorLevel: "RISING" as const
   } : null;
 
-  // Get user avatar (same priority as Portfolio)
+  // Get user avatar (same priority as Portfolio) with stability check
   const userAvatar = useMemo(() => {
+    if (!isProfileDataStable) return "/api/placeholder/40/40";
+    
     const profile = normalizedSocialProfile || profileFromContract;
 
     if (profile?.avatar && profile.avatar !== '') {
@@ -156,10 +173,12 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
 
     // Default placeholder
     return "/api/placeholder/40/40";
-  }, [normalizedSocialProfile, profileFromContract]);
+  }, [normalizedSocialProfile, profileFromContract, isProfileDataStable]);
 
-  // Get user display name
+  // Get user display name with stability check
   const userDisplayName = useMemo(() => {
+    if (!isProfileDataStable) return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "User";
+    
     const profile = normalizedSocialProfile || profileFromContract;
 
     if (profile?.displayName && profile.displayName !== '') {
@@ -171,7 +190,7 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
     }
 
     return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "User";
-  }, [normalizedSocialProfile, profileFromContract, address]);
+  }, [normalizedSocialProfile, profileFromContract, address, isProfileDataStable]);
 
   const navItems = [
     { id: "explore", label: "explore", path: "/explore" },

@@ -3,6 +3,7 @@ import { parseEther, formatEther } from 'viem';
 import { CONTRACT_ADDRESSES, HIBEATS_TOKEN_ABI } from '../contracts';
 import { toast } from 'sonner';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useOptimizedContractWrite } from './useOptimizedContractWrite';
 
 export function useToken() {
   const { address } = useAccount();
@@ -11,7 +12,10 @@ export function useToken() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastRefreshRef = useRef<number>(0);
   
-  // Write contract operations
+  // Use optimized contract write
+  const { writeContract: optimizedWrite, isLoading: isWriteLoading } = useOptimizedContractWrite();
+  
+  // Legacy wagmi hooks for backward compatibility (but not actively used for writes)
   const { writeContract, data: hash, error, isPending } = useWriteContract();
   
   // Wait for transaction
@@ -19,17 +23,22 @@ export function useToken() {
     hash,
   });
 
-  // Read user balance with auto-refresh
-  const { data: balance, refetch: refetchBalance } = useReadContract({
+  // Read user balance with optimized polling
+  const { 
+    data: balance, 
+    refetch: refetchBalance,
+    isLoading: isBalanceLoading,
+    error: balanceError
+  } = useReadContract({
     address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
     abi: HIBEATS_TOKEN_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    enabled: !!address,
-    // Poll every 15 seconds in background
     query: {
-      refetchInterval: 15000, // Back to 15 seconds
-      refetchIntervalInBackground: true,
+      enabled: !!address,
+      refetchInterval: 30000, // 30 seconds
+      refetchIntervalInBackground: false,
+      staleTime: 15000, // Cache for 15 seconds
     }
   });
 
@@ -61,27 +70,20 @@ export function useToken() {
     functionName: 'decimals',
   });
 
-  // Read user rewards
-  const { data: rewards, refetch: refetchRewards } = useReadContract({
-    address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
-    abi: HIBEATS_TOKEN_ABI,
-    functionName: 'getRewards',
-    args: address ? [address] : undefined,
-    enabled: !!address,
-  });
-
-  // Read allowance
-  const getAllowance = (spender: string) => {
+  // Read allowance function
+  const getAllowance = useCallback((spender: string) => {
     return useReadContract({
       address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
       abi: HIBEATS_TOKEN_ABI,
       functionName: 'allowance',
       args: address && spender ? [address, spender as `0x${string}`] : undefined,
-      enabled: !!(address && spender),
+      query: {
+        enabled: !!(address && spender),
+      },
     });
-  };
+  }, [address]);
 
-  // Transfer tokens
+  // Transfer tokens with optimized transaction
   const transfer = async (to: string, amount: bigint) => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -91,22 +93,30 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'transfer',
         args: [to as `0x${string}`, amount],
       });
-
-      toast.success('Transfer initiated!');
-    } catch (err) {
-      console.error('Error transferring tokens:', err);
-      toast.error('Failed to transfer tokens');
+      
+      if (txHash) {
+        console.log('Token transfer initiated:', txHash);
+        // Trigger balance refresh after a short delay
+        setTimeout(() => {
+          refetchBalance();
+        }, 2000);
+      }
+      
+    } catch (err: any) {
+      console.error('Transfer failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Approve tokens
+  // Approve tokens with optimized transaction
   const approve = async (spender: string, amount: bigint) => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -116,22 +126,26 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'approve',
         args: [spender as `0x${string}`, amount],
       });
-
-      toast.success('Approval initiated!');
-    } catch (err) {
-      console.error('Error approving tokens:', err);
-      toast.error('Failed to approve tokens');
+      
+      if (txHash) {
+        console.log('Token approval initiated:', txHash);
+      }
+      
+    } catch (err: any) {
+      console.error('Approval failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Transfer from (requires approval)
+  // Transfer from with optimized transaction
   const transferFrom = async (from: string, to: string, amount: bigint) => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -141,22 +155,30 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'transferFrom',
         args: [from as `0x${string}`, to as `0x${string}`, amount],
       });
-
-      toast.success('Transfer from initiated!');
-    } catch (err) {
-      console.error('Error transferring from:', err);
-      toast.error('Failed to transfer from');
+      
+      if (txHash) {
+        console.log('Token transferFrom initiated:', txHash);
+        // Trigger balance refresh after a short delay
+        setTimeout(() => {
+          refetchBalance();
+        }, 2000);
+      }
+      
+    } catch (err: any) {
+      console.error('TransferFrom failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Claim rewards
+  // Claim rewards with optimized transaction
   const claimRewards = async () => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -166,21 +188,29 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'claimRewards',
       });
-
-      toast.success('Reward claim initiated!');
-    } catch (err) {
-      console.error('Error claiming rewards:', err);
-      toast.error('Failed to claim rewards');
+      
+      if (txHash) {
+        console.log('Reward claim initiated:', txHash);
+        // Trigger balance refresh after a short delay
+        setTimeout(() => {
+          refetchBalance();
+        }, 2000);
+      }
+      
+    } catch (err: any) {
+      console.error('Claim rewards failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Burn tokens
+  // Burn tokens with optimized transaction
   const burn = async (amount: bigint) => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -190,22 +220,30 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'burn',
         args: [amount],
       });
-
-      toast.success('Token burn initiated!');
-    } catch (err) {
-      console.error('Error burning tokens:', err);
-      toast.error('Failed to burn tokens');
+      
+      if (txHash) {
+        console.log('Token burn initiated:', txHash);
+        // Trigger balance refresh after a short delay
+        setTimeout(() => {
+          refetchBalance();
+        }, 2000);
+      }
+      
+    } catch (err: any) {
+      console.error('Token burn failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Increase allowance
+  // Increase allowance with optimized transaction
   const increaseAllowance = async (spender: string, addedValue: bigint) => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -215,22 +253,26 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'increaseAllowance',
         args: [spender as `0x${string}`, addedValue],
       });
-
-      toast.success('Allowance increase initiated!');
-    } catch (err) {
-      console.error('Error increasing allowance:', err);
-      toast.error('Failed to increase allowance');
+      
+      if (txHash) {
+        console.log('Allowance increase initiated:', txHash);
+      }
+      
+    } catch (err: any) {
+      console.error('Increase allowance failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
 
-  // Decrease allowance
+  // Decrease allowance with optimized transaction
   const decreaseAllowance = async (spender: string, subtractedValue: bigint) => {
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -240,17 +282,21 @@ export function useToken() {
     try {
       setIsLoading(true);
       
-      writeContract({
+      const txHash = await optimizedWrite({
         address: CONTRACT_ADDRESSES.HIBEATS_TOKEN,
         abi: HIBEATS_TOKEN_ABI,
         functionName: 'decreaseAllowance',
         args: [spender as `0x${string}`, subtractedValue],
       });
-
-      toast.success('Allowance decrease initiated!');
-    } catch (err) {
-      console.error('Error decreasing allowance:', err);
-      toast.error('Failed to decrease allowance');
+      
+      if (txHash) {
+        console.log('Allowance decrease initiated:', txHash);
+      }
+      
+    } catch (err: any) {
+      console.error('Decrease allowance failed:', err);
+      // Error is already handled by optimizedWrite
+    } finally {
       setIsLoading(false);
     }
   };
@@ -341,11 +387,11 @@ export function useToken() {
       // Force refresh after successful transaction
       setTimeout(() => {
         forceRefreshBalance();
-        refetchRewards();
+        refetchBalance();
       }, 1000); // Wait 1 second for blockchain confirmation
       toast.success('Token transaction completed!');
     }
-  }, [isSuccess, forceRefreshBalance, refetchRewards]);
+  }, [isSuccess, forceRefreshBalance, refetchBalance]);
 
   useEffect(() => {
     if (error) {
@@ -373,7 +419,6 @@ export function useToken() {
     tokenName: tokenName || 'HiBeats Token',
     tokenSymbol: tokenSymbol || 'BEATS',
     decimals: decimals || 18,
-    rewards: rewards || 0n,
     
     // Utilities
     formatBalance,
@@ -383,7 +428,7 @@ export function useToken() {
     smartRefreshBalance, // Add smart refresh for background use
     
     // State
-    isLoading: isLoading || isPending || isConfirming,
+    isLoading: isLoading || isWriteLoading || isPending || isConfirming,
     hash,
     error,
   };

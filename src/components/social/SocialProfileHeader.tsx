@@ -41,11 +41,13 @@ import {
 import { useOptimisticProfile } from '@/hooks/useOptimisticProfile';
 import { useProfile } from '@/hooks/useProfile';
 import { useIPFS } from '@/hooks/useIPFS';
-import { useAccount, useWriteContract } from 'wagmi';
+import { useAccount } from 'wagmi';
+import { useWalletPersistence } from '@/hooks/useWalletPersistence';
 import { toast } from 'sonner';
 import { HiBeatsMarketplaceAdvancedABI } from '@/contracts/HiBeatsMarketplaceAdvancedABI';
-import { HIBEATS_PROFILE_ABI } from '@/contracts/HiBeatsProfileABI';
-import { CONTRACT_ADDRESSES } from '@/config/web3';
+// Remove these imports as we now use createProfile hook
+// import { HIBEATS_PROFILE_ABI } from '@/contracts/HiBeatsProfileABI';
+// import { CONTRACT_ADDRESSES } from '@/config/web3';
 import defaultAvatar from '@/images/assets/defaultprofile.gif';
 import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 
@@ -122,6 +124,9 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   onProfileUpdate,
   onProfileCreate
 }) => {
+  // Get wallet persistence states
+  const { isInitializing, isReconnecting } = useWalletPersistence();
+  
   // Safety check for profile data
   if (!profile) {
     console.warn('SocialProfileHeader: profile prop is null or undefined');
@@ -136,6 +141,7 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [localHasProfile, setLocalHasProfile] = useState(hasProfile);
+  const [isProfileSystemsReady, setIsProfileSystemsReady] = useState(false);
   
   // Create stable initial form data using useMemo to prevent re-renders
   const initialEditForm = useMemo(() => ({
@@ -166,7 +172,6 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   // Merge optimistic profile with prop profile as fallback
   const displayProfile = profile;
 
-
   // Combined loading state dari berbagai sumber
   const isUploading = ipfsUploading || isLocalUploading;
   const displayUploadProgress = uploadProgress;
@@ -184,16 +189,32 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [bannerPreview, setBannerPreview] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
-  const { writeContractAsync } = useWriteContract();
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const createAvatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync local hasProfile state with prop
+  // Profile systems stabilization to prevent overlay flicker
   useEffect(() => {
-    setLocalHasProfile(hasProfile);
-  }, [hasProfile]);
+    if (isInitializing || isReconnecting) {
+      setIsProfileSystemsReady(false);
+      return;
+    }
+
+    // Wait for all systems to stabilize
+    const timer = setTimeout(() => {
+      setIsProfileSystemsReady(true);
+    }, 800); // 800ms delay to ensure profile data is loaded
+
+    return () => clearTimeout(timer);
+  }, [isInitializing, isReconnecting, hasProfile]);
+
+  // Sync local hasProfile state with prop only when systems are ready
+  useEffect(() => {
+    if (isProfileSystemsReady) {
+      setLocalHasProfile(hasProfile);
+    }
+  }, [hasProfile, isProfileSystemsReady]);
 
   // Cleanup preview URLs to prevent memory leaks
   useEffect(() => {
@@ -492,32 +513,32 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
       return;
     }
 
-
     setIsCreating(true);
+    
+    // Show loading toast
+    const loadingToastId = toast.loading('Creating your profile...', {
+      description: 'Please confirm the transaction in your wallet.'
+    });
+
     try {
-      // ✅ Use HiBeatsProfile.createProfile (4 params, unified structure)
-
-      if (!CONTRACT_ADDRESSES.HIBEATS_PROFILE) {
-        throw new Error('HiBeatsProfile contract address not configured');
-      }
-
-
-      const tx = await writeContractAsync({
-        address: CONTRACT_ADDRESSES.HIBEATS_PROFILE,
-        abi: HIBEATS_PROFILE_ABI,
-        functionName: 'createProfile',
-        args: [
-          createForm.username,
-          createForm.displayName || createForm.username,
-          createForm.bio || '',
-          createForm.profileImageUrl || ''
-        ],
+      // Use createProfile hook - THIS WILL ONLY TRIGGER ONE TRANSACTION
+      console.log('Creating profile with createProfile hook...');
+      await createProfile({
+        username: createForm.username,
+        displayName: createForm.displayName || createForm.username,
+        bio: createForm.bio || '',
+        profileImageUrl: createForm.profileImageUrl || ''
       });
 
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+      
+      // Show success message
+      toast.success('🎉 Profile created successfully!', {
+        description: 'Your profile is being updated...'
+      });
 
-      toast.info('Transaction submitted. Please wait for confirmation...');
-
-      toast.success('Profile created successfully!');
+      // Close form immediately
       setShowCreateForm(false);
 
       // Immediately update local state to hide overlay
@@ -532,13 +553,32 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
       });
       setAvatarPreview("");
       setBannerPreview("");
+
+      // ONLY call onProfileCreate once - no duplicate calls
+      if (onProfileCreate) {
+        console.log('🔄 Triggering profile creation callback...');
+        await onProfileCreate({
+          username: createForm.username,
+          displayName: createForm.displayName || createForm.username,
+          bio: createForm.bio || '',
+          profileImageUrl: createForm.profileImageUrl || ''
+        });
+      }
+
     } catch (error) {
       console.error('Error creating profile:', error);
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
       
       // More specific error messages
       if (error instanceof Error) {
         if (error.message.includes('username')) {
           toast.error('Username already exists or is invalid');
+        } else if (error.message.includes('rejected') || error.message.includes('User rejected')) {
+          toast.error('Transaction cancelled by user');
+        } else if (error.message.includes('insufficient funds')) {
+          toast.error('Insufficient funds for transaction');
         } else if (error.message.includes('IPFS')) {
           toast.error('Failed to upload profile image. Please try again.');
         } else if (error.message.includes('network')) {
@@ -565,8 +605,8 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
 
   return (
     <div className="relative">
-      {/* Create Profile Overlay - Covers profile header area only when no profile */}
-      {!localHasProfile && (
+      {/* Create Profile Overlay - Only show when systems are ready and no profile */}
+      {isProfileSystemsReady && !localHasProfile && (
         <div className="absolute top-0 left-0 right-0 bottom-0 backdrop-blur-lg bg-gradient-to-br from-black/85 via-accent/10 to-black/85 z-30 flex items-center justify-center h-full">
           <div className="text-center space-y-6 p-8 bg-gradient-to-br from-background/95 via-accent/5 to-background/95 rounded-2xl border border-accent/30 backdrop-blur-sm shadow-2xl shadow-accent/10 max-w-md mx-4">
             {/* Animated Icon */}

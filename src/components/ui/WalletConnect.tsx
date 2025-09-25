@@ -5,16 +5,21 @@ import { getPrimarySomName } from '@/services/somniaService';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, Wallet, AlertTriangle } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useSocial } from '@/hooks/useSocial';
+import { useRainbowKitConnectionFix } from '@/hooks/useRainbowKitConnectionFix';
+import { useWalletPersistence } from '@/hooks/useWalletPersistence';
 import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 import defaultAvatar from '@/images/assets/defaultprofile.gif';
 
 export const WalletConnect = () => {
   const { address, isConnected } = useAccount();
+  const { isConnectionInProgress, isMetaMaskAvailable } = useRainbowKitConnectionFix();
+  const { isReconnecting, isInitializing, disconnectWallet } = useWalletPersistence();
   const [somniaName, setSomniaName] = useState<string | null>(null);
   const [isLoadingName, setIsLoadingName] = useState(false);
+  const [isProfileStable, setIsProfileStable] = useState(false);
 
   // Get profile data (same logic as Navigation and Portfolio)
   const { userProfile: userProfileData } = useProfile();
@@ -105,90 +110,216 @@ export const WalletConnect = () => {
     return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "User";
   }, [normalizedSocialProfile, profileFromContract, address]);
 
+  // Add profile stabilization to prevent flicker
+  useEffect(() => {
+    if (isConnected && address && !isReconnecting && !isInitializing) {
+      // Wait a bit for profile data to stabilize
+      const timer = setTimeout(() => {
+        setIsProfileStable(true);
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setIsProfileStable(false);
+    }
+  }, [isConnected, address, isReconnecting, isInitializing]);
+
+  // Fetch Somnia name with optimized caching
   useEffect(() => {
     const fetchSomniaName = async () => {
-      if (address && isConnected) {
+      if (address && isConnected && !isReconnecting && isProfileStable) {
+        // Check cache first
+        const cacheKey = `somnia_name_${address}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
+        
+        // Use cached data if less than 5 minutes old
+        if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 5 * 60 * 1000) {
+          setSomniaName(cached === 'null' ? null : cached);
+          return;
+        }
+
         setIsLoadingName(true);
         try {
           const name = await getPrimarySomName(address);
           setSomniaName(name);
+          
+          // Cache the result
+          sessionStorage.setItem(cacheKey, name || 'null');
+          sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
         } catch (error) {
           console.error('Failed to fetch Somnia name:', error);
           setSomniaName(null);
+          // Cache the null result to avoid repeated failed requests
+          sessionStorage.setItem(cacheKey, 'null');
+          sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
         } finally {
           setIsLoadingName(false);
         }
       } else {
         setSomniaName(null);
+        setIsLoadingName(false);
       }
     };
 
     fetchSomniaName();
-  }, [address, isConnected]);
+  }, [address, isConnected, isReconnecting, isProfileStable]);
 
-  if (!isConnected) {
-    return <ConnectButton />;
+  // Loading state during connection or reconnection
+  const showMetaMaskWarning = !isMetaMaskAvailable();
+  const isLoading = isConnectionInProgress || isReconnecting || isInitializing;
+  const showConnectedUI = isConnected && isProfileStable;
+
+  if (!isConnected && !isInitializing) {
+    return (
+      <div className="flex items-center space-x-2">
+        {/* Use RainbowKit's ConnectButton with custom styling */}
+        <ConnectButton.Custom>
+          {({ account, chain, openConnectModal, mounted }) => {
+            const ready = mounted;
+            const connected = ready && account && chain;
+
+            return (
+              <div
+                {...(!ready && {
+                  'aria-hidden': true,
+                  'style': {
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  },
+                })}
+              >
+                {(() => {
+                  if (!connected) {
+                    return (
+                      <Button
+                        onClick={openConnectModal}
+                        disabled={isLoading}
+                        className="bg-gradient-to-r from-primary to-purple-600 hover:from-primary/80 hover:to-purple-600/80 text-black font-semibold px-4 py-2 rounded-full transition-all duration-200 disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {isReconnecting ? 'Reconnecting...' : 
+                             isInitializing ? 'Initializing...' : 'Connecting...'}
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="w-4 h-4 mr-2" />
+                            Connect Wallet
+                          </>
+                        )}
+                      </Button>
+                    );
+                  }
+                })()}
+              </div>
+            );
+          }}
+        </ConnectButton.Custom>
+
+        {/* MetaMask Installation Warning */}
+        {showMetaMaskWarning && (
+          <div className="hidden sm:block">
+            <Button
+              onClick={() => window.open('https://metamask.io/download/', '_blank')}
+              variant="outline"
+              size="sm"
+              className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 text-xs"
+            >
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              Install MetaMask
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Show loading skeleton during initialization or when profile not stable
+  if (isInitializing || (isConnected && !isProfileStable)) {
+    return (
+      <div className="flex items-center space-x-3">
+        {/* Loading skeleton that matches the connected state layout */}
+        <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 animate-pulse">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-4 h-4 animate-spin text-white/70" />
+            <span className="text-white/70 text-sm">
+              {isInitializing ? 'Reconnecting...' : 'Loading...'}
+            </span>
+          </div>
+        </div>
+        
+        {/* Loading avatar skeleton */}
+        <div className="w-10 h-10 bg-white/10 rounded-full animate-pulse border-2 border-white/30"></div>
+      </div>
+    );
   }
 
   return (
     <div className="flex items-center space-x-3">
       {/* Wallet Info Display - Clean Circular Design */}
-      <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 hover:bg-white/15 transition-all duration-200 cursor-pointer">
-        <div className="flex flex-col items-start min-w-0">
-          {somniaName ? (
-            <div className="flex items-center space-x-2">
-              <span className="text-white text-sm font-medium truncate max-w-[120px]">{somniaName}</span>
-              <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-primary/20 text-primary border-primary/30 rounded-full">
-                .som
-              </Badge>
-            </div>
-          ) : isLoadingName ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="w-3 h-3 animate-spin text-white/70" />
-              <span className="text-white/70 text-xs">Loading...</span>
-            </div>
-          ) : (
-            <span className="text-white text-sm font-medium">
-              {address?.slice(0, 6)}...{address?.slice(-4)}
-            </span>
-          )}
+      {showConnectedUI && (
+        <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 hover:bg-white/15 transition-all duration-200 cursor-pointer">
+          <div className="flex flex-col items-start min-w-0">
+            {somniaName ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-white text-sm font-medium truncate max-w-[120px]">{somniaName}</span>
+                <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-primary/20 text-primary border-primary/30 rounded-full">
+                  .som
+                </Badge>
+              </div>
+            ) : isLoadingName ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="w-3 h-3 animate-spin text-white/70" />
+                <span className="text-white/70 text-xs">Loading...</span>
+              </div>
+            ) : (
+              <span className="text-white text-sm font-medium">
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* User Avatar with Photo */}
-      <ConnectButton.Custom>
-        {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-          if (!mounted || !account || !chain) return null;
+      {showConnectedUI && (
+        <ConnectButton.Custom>
+          {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+            if (!mounted || !account || !chain) return null;
 
-          return (
-            <div
-              onClick={openAccountModal}
-              className="cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <Avatar className="w-10 h-10 border-2 border-white/30 hover:border-white/50 transition-all duration-200">
-                {userAvatar && userAvatar.trim() !== '' && userAvatar !== defaultAvatar ? (
-                  <ImageWithFallback
-                    src={userAvatar}
-                    alt={userDisplayName}
-                    className="w-full h-full object-cover rounded-full"
-                    fallbackSrc={defaultAvatar}
-                  />
-                ) : (
-                  <AvatarImage src={defaultAvatar} alt={userDisplayName} />
-                )}
-                <AvatarFallback
-                  className="text-white font-bold text-lg"
-                  style={{
-                    background: 'linear-gradient(135deg, #FF007A 0%, #7C5DFA 100%)'
-                  }}
-                >
-                  <User className="w-5 h-5" />
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          );
-        }}
-      </ConnectButton.Custom>
+            return (
+              <div
+                onClick={openAccountModal}
+                className="cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <Avatar className="w-10 h-10 border-2 border-white/30 hover:border-white/50 transition-all duration-200">
+                  {userAvatar && userAvatar.trim() !== '' && userAvatar !== defaultAvatar ? (
+                    <ImageWithFallback
+                      src={userAvatar}
+                      alt={userDisplayName}
+                      className="w-full h-full object-cover rounded-full"
+                      fallbackSrc={defaultAvatar}
+                    />
+                  ) : (
+                    <AvatarImage src={defaultAvatar} alt={userDisplayName} />
+                  )}
+                  <AvatarFallback
+                    className="text-white font-bold text-lg"
+                    style={{
+                      background: 'linear-gradient(135deg, #FF007A 0%, #7C5DFA 100%)'
+                    }}
+                  >
+                    <User className="w-5 h-5" />
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+            );
+          }}
+        </ConnectButton.Custom>
+      )}
     </div>
   );
 };
