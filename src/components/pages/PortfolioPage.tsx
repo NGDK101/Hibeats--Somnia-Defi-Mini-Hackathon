@@ -3,6 +3,7 @@ import { useSocialContract } from '@/hooks/useSocialContract';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NFTDetailPanel } from "@/components/details/NFTDetailPanel";
@@ -65,6 +66,18 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [componentError, setComponentError] = useState<string | null>(null);
 
+  // Loading states
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Initialize loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 1000); // Show skeleton for 1s
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Component error boundary with better error handling
   useEffect(() => {
     const handleError = (error: ErrorEvent) => {
@@ -100,6 +113,7 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
     isLoading: profileLoading,
     error: profileError,
     profileExists: hasProfileFromContract,
+    profileExistsLoading,
     forceRefresh: forceRefreshProfile
   } = useProfile();
   const { address } = useAccount();
@@ -594,7 +608,7 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
       socialLinks: [
         {
           platform: 'website',
-          url: socialProfile.website || 'https://hibeats.app',
+          url: socialProfile.website || '',
           icon: '🌐'
         },
         {
@@ -664,75 +678,14 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
         };
       }
 
-      // Fallback profile with dynamic data
-      return {
-        displayName: "Music Creator",
-        username: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "0xf3...2266",
-        bio: "AI music enthusiast and digital creator",
-        avatar: "", // Empty string will trigger default avatar
-        coverImage: "", // Empty string will trigger default gradient
-        website: "https://hibeats.app",
-        twitter: "hibeats",
-        instagram: "hibeats",
-        spotify: "https://open.spotify.com/artist/hibeats",
-        youtube: "https://youtube.com/@hibeats",
-        location: "Web3",
-        verified: false,
-        joinedDate: new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'numeric',
-          day: 'numeric'
-        }),
-        followerCount: 0,
-        followingCount: 0,
-        trackCount: actualTrackCount,
-        totalPlays: actualTotalPlays,
-        creatorLevel: "NEWCOMER" as const,
-        socialLinks: [
-          {
-            platform: 'website',
-            url: 'https://hibeats.app',
-            icon: '🌐'
-          },
-          {
-            platform: 'twitter',
-            url: 'https://twitter.com/hibeats',
-            icon: '🐦'
-          },
-          {
-            platform: 'instagram',
-            url: 'https://instagram.com/hibeats',
-            icon: '📷'
-          },
-          {
-            platform: 'spotify',
-            url: 'https://open.spotify.com/artist/hibeats',
-            icon: '🎵'
-          }
-        ]
-      };
+      // No fallback profile - return null if no real profile exists
+      return null;
     } catch (error) {
       console.error('Error creating user profile:', error);
       setComponentError('Failed to load profile data');
 
-      // Return minimal fallback profile
-      return {
-        displayName: "User",
-        username: "0x...0000",
-        bio: "Digital creator",
-        avatar: "/api/placeholder/150/150",
-        coverImage: "/api/placeholder/1200/300",
-        website: "",
-        location: "Web3",
-        verified: false,
-        joinedDate: new Date().toLocaleDateString(),
-        followerCount: 0,
-        followingCount: 0,
-        trackCount: 0,
-        totalPlays: 0,
-        creatorLevel: "NEWCOMER" as const,
-        socialLinks: []
-      };
+      // Return null on error instead of dummy data
+      return null;
     }
   }, [normalizedSocialProfile, profileFromContract, unmintedSongs, mintedSongs, address]);
 
@@ -785,45 +738,28 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
   // Handle profile creation with immediate refresh
   const handleProfileCreation = async (profileData: any) => {
     try {
-      console.log('🚀 Profile created, starting refresh:', profileData);
+      console.log('🚀 Creating profile:', profileData);
       
-      // PROFILE ALREADY CREATED in SocialProfileHeader - no need to create again
-      // Just do the refresh logic here
+      // Create profile using the useProfile hook (which includes automatic refresh)
+      const txHash = await createProfile(profileData);
+      console.log('✅ Profile creation completed with hash:', txHash);
       
-      // Force immediate profile data refresh after successful creation
+      // Wait a bit longer and do one final refresh to ensure UI is updated
       setTimeout(async () => {
         try {
-          console.log('🔄 Refreshing profile data after creation...');
-          
-          // Use the hook's force refresh method
+          console.log('🔄 Final profile refresh...');
           await forceRefreshProfile();
-          
-          // Also refresh social profile data
           await refreshProfileData();
           
-          // Additional refresh after delay to catch blockchain updates
-          setTimeout(async () => {
-            await forceRefreshProfile();
-            await refreshProfileData();
-            console.log('✅ Profile data refreshed successfully');
-            
-            toast.success('🎉 Profile is now live and ready!', {
-              description: 'Your profile has been created and updated successfully.'
-            });
-          }, 2000);
-          
-        } catch (refreshError) {
-          console.error('❌ Profile refresh after creation failed:', refreshError);
-          
-          // If refresh fails, suggest page reload to user
-          toast.info('Profile created! Please refresh the page to see changes.', {
-            action: {
-              label: 'Refresh',
-              onClick: () => window.location.reload()
-            }
+          toast.success('🎉 Profile is now live and ready!', {
+            description: 'Your profile has been created and updated successfully.'
           });
+          
+          console.log('✅ Profile creation and refresh completed');
+        } catch (refreshError) {
+          console.error('❌ Final profile refresh failed:', refreshError);
         }
-      }, 1000);
+      }, 5000); // Wait 5 seconds for blockchain finality
       
     } catch (error) {
       console.error('❌ Profile creation error:', error);
@@ -1020,6 +956,11 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
     </div>
   );
 
+  // Show skeleton loading
+  if (isInitialLoading) {
+    return <PageSkeleton type="portfolio" />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black">
       {/* Enhanced Social Profile Header */}
@@ -1047,9 +988,30 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
         }
       >
         <SocialProfileHeader
-          profile={userProfile}
+          profile={userProfile || {
+            displayName: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "User",
+            username: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "user",
+            bio: "",
+            avatar: "",
+            coverImage: "",
+            website: "",
+            twitter: "",
+            instagram: "",
+            spotify: "",
+            youtube: "",
+            location: "",
+            verified: false,
+            joinedDate: new Date().toLocaleDateString(),
+            followerCount: 0,
+            followingCount: 0,
+            trackCount: (unmintedSongs?.length || 0) + (mintedSongs?.length || 0),
+            totalPlays: 0,
+            creatorLevel: "NEWCOMER" as const,
+            socialLinks: []
+          }}
           isOwnProfile={true}
           hasProfile={hasProfileFromContract}
+          profileExistsLoading={profileExistsLoading}
           onProfileUpdate={handleProfileUpdate}
           onProfileCreate={handleProfileCreation}
         />
@@ -1430,7 +1392,7 @@ export const PortfolioPage = ({ onSongSelect }: PortfolioPageProps) => {
         type={followerListType}
         userAddress={address || ''}
         title={followerListType === 'followers' ? 'Followers' : 'Following'}
-        count={followerListType === 'followers' ? (userProfile.followerCount || 0) : (userProfile.followingCount || 0)}
+        count={followerListType === 'followers' ? (userProfile?.followerCount || 0) : (userProfile?.followingCount || 0)}
         onFollow={handleFollow}
         onUnfollow={handleUnfollow}
       />

@@ -33,11 +33,13 @@ export const config = getDefaultConfig({
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '3edb0ee565402a16259f5dabb5c427ff',
   chains: [somniaTestnet],
   ssr: false,
-  // Add persistent storage configuration
+  // Enhanced persistent storage configuration for better wallet persistence
   storage: createStorage({
     storage: typeof window !== 'undefined' ? localStorage : undefined,
-    key: 'hibeats.wallet',
+    key: 'hibeats.wagmi',
   }),
+  // Enable auto-connect for wallet persistence on page reload
+  autoConnect: true,
   // Optimized batch settings untuk faster transactions
   batch: {
     multicall: {
@@ -47,6 +49,8 @@ export const config = getDefaultConfig({
   },
   // Reduce polling untuk better performance
   pollingInterval: 12_000, // 12 seconds instead of 4
+  // Enable auto-reconnect for wallet persistence
+  syncConnectedChain: true,
 });
 
 // Contract Addresses

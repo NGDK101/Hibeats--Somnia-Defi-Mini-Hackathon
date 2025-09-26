@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
+import { PageSkeleton } from '@/components/ui/PageSkeleton';
 
 interface ProfilePageProps {
   username?: string;
@@ -14,14 +15,7 @@ export default function ProfilePage({ username: propUsername, userAddress }: Pro
   const displayUsername = propUsername || urlUsername || 'Unknown';
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading profile...</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton type="profile" />;
   }
 
   return (

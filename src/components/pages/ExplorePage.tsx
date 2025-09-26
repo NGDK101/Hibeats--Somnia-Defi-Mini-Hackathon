@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { GlassCard } from '@/components/ui/glass-card';
+import { PageSkeleton } from '@/components/ui/PageSkeleton';
 import { Search, Filter, Grid, List, Volume2, Play, Heart, Share2, Music, Eye, X, Clock, Calendar, Download, MoreHorizontal, Pause, Copy, Zap, TrendingUp, Sparkles, Star, Users, User, UserPlus, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ListedSongCard } from '@/components/marketplace/ListedSongCard';
 import ActiveListingCard from '@/components/marketplace/ActiveListingCard';
@@ -14,7 +15,7 @@ import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 
 import { HIBEATS_PROFILE_ABI } from '@/contracts/HiBeatsProfileABI';
 import { CONTRACT_ADDRESSES } from '@/config/web3';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import banner from '@/images/banner.png';
 import footerBg from '@/images/assets/footer.png';
 import defaultAvatar from '@/images/assets/defaultprofile.gif';
@@ -74,9 +75,44 @@ interface SelectedSong {
 
 const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { address } = useAccount();
   const { buyNFT, isLoading: isMarketplaceLoading } = useMarketplace();
   const { followUser, unfollowUser, isFollowing, profileExists, error: profileError, hash: profileHash, getProfileByAddress } = useProfile();
+
+  // Search states (moved up to avoid reference errors)
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  // Loading states
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Initialize loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 1200); // Show skeleton for 1.2s
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Sync search query with URL params
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl && searchFromUrl !== searchQuery) {
+      setSearchQuery(searchFromUrl);
+    }
+  }, [searchParams]);
+
+  // Update URL when search query changes
+  useEffect(() => {
+    if (searchQuery) {
+      setSearchParams({ search: searchQuery });
+    } else {
+      searchParams.delete('search');
+      setSearchParams(searchParams);
+    }
+  }, [searchQuery, setSearchParams]);
   const { writeContract } = useWriteContract();
   const { isSuccess: isFollowSuccess } = useWaitForTransactionReceipt({ hash: profileHash });
 
@@ -133,9 +169,12 @@ const ExplorePage: React.FC = () => {
   // Track last followed creator for logging
   const [lastFollowedCreator, setLastFollowedCreator] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortBy, setSortBy] = useState<'recent' | 'price-low' | 'price-high' | 'popular' | 'alphabetical'>('recent');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [currentPlaying, setCurrentPlaying] = useState<string | null>(null);
   const [selectedSong, setSelectedSong] = useState<SelectedSong | null>(null);
   const [isDetailsPanelVisible, setIsDetailsPanelVisible] = useState(false);
@@ -165,6 +204,43 @@ const ExplorePage: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Sorting function (moved before useMemo to fix initialization order)
+  const sortTracks = useCallback((tracks: any[], sortType: string) => {
+    const sortedTracks = [...tracks];
+
+    switch (sortType) {
+      case 'price-low':
+        return sortedTracks.sort((a, b) => {
+          const priceA = parseFloat(a.priceInETH || a.price || '0');
+          const priceB = parseFloat(b.priceInETH || b.price || '0');
+          return priceA - priceB;
+        });
+      case 'price-high':
+        return sortedTracks.sort((a, b) => {
+          const priceA = parseFloat(a.priceInETH || a.price || '0');
+          const priceB = parseFloat(b.priceInETH || b.price || '0');
+          return priceB - priceA;
+        });
+      case 'alphabetical':
+        return sortedTracks.sort((a, b) =>
+          (a.title || a.name || '').localeCompare(b.title || b.name || '')
+        );
+      case 'popular':
+        return sortedTracks.sort((a, b) => {
+          const viewsA = parseInt(a.views || a.totalPlays || '0');
+          const viewsB = parseInt(b.views || b.totalPlays || '0');
+          return viewsB - viewsA;
+        });
+      case 'recent':
+      default:
+        return sortedTracks.sort((a, b) => {
+          const dateA = new Date(a.createdAt || Date.now()).getTime();
+          const dateB = new Date(b.createdAt || Date.now()).getTime();
+          return dateB - dateA;
+        });
+    }
+  }, []);
   
   // Discovery hooks
   const {
@@ -256,10 +332,10 @@ const ExplorePage: React.FC = () => {
     }
   }, [activeTab, convertDiscoveryTracksToDisplayFormat, trendingTracks, newReleases, featuredTracks, allActiveListings]);
 
-  // Optimized search using hybrid metadata strategy
+  // Enhanced search with multiple strategies
   const getFilteredTracks = useMemo(() => {
     let baseTracks: any[] = getCurrentTracks();
-    
+
     // Apply genre filter if not 'All'
     if (selectedCategory !== 'All') {
       if (activeTab === 'all') {
@@ -273,27 +349,109 @@ const ExplorePage: React.FC = () => {
         });
       }
     }
-    
-    // Apply optimized search using MetadataStrategy
+
+    // Apply enhanced search using MetadataStrategy
     if (debouncedSearchQuery.trim()) {
-      // Use hybrid search from MetadataStrategy
-      const searchResults = metadataStrategy.searchTracks(
-        baseTracks.map(track => ({
-          ...track,
-          ipfsMetadata: track.ipfsMetadata || null,
-          isLoading: track.isLoadingMetadata || false
-        })),
-        debouncedSearchQuery
-      );
-      
-      return searchResults.map(track => metadataStrategy.getDisplayData(track));
+      // Convert to MetadataStrategy format for better search
+      const searchableData = baseTracks.map(track => ({
+        tokenId: BigInt(track.tokenId || track.id || 0),
+        creator: track.seller || track.creator || '',
+        price: BigInt(track.price || 0),
+        ipfsHash: track.id || track.ipfsHash || '',
+        createdAt: BigInt(Math.floor(new Date(track.createdAt || Date.now()).getTime() / 1000)),
+        isListed: true,
+        genre: Array.isArray(track.genre) ? track.genre.join(' ') : (track.genre || 'Unknown'),
+        duration: track.duration || 0,
+        ipfsMetadata: track.metadata || track.ipfsMetadata || null,
+        isLoading: false
+      }));
+
+      // Use enhanced search from MetadataStrategy
+      const searchResults = metadataStrategy.searchTracks(searchableData, debouncedSearchQuery);
+
+      return searchResults.map(track => {
+        // Find original track data to preserve all properties
+        const originalTrack = baseTracks.find(orig =>
+          orig.id === track.tokenId.toString() ||
+          orig.tokenId?.toString() === track.tokenId.toString()
+        );
+
+        // Return enhanced data with original properties
+        return {
+          ...originalTrack,
+          ...metadataStrategy.getDisplayData(track),
+          // Preserve original track properties that might not be in MetadataStrategy
+          priceInETH: originalTrack?.priceInETH,
+          priceInWei: originalTrack?.priceInWei,
+          seller: originalTrack?.seller,
+          imageUrl: originalTrack?.imageUrl || track.ipfsMetadata?.image,
+          audioUrl: originalTrack?.audioUrl || track.ipfsMetadata?.audio,
+        };
+      });
     }
-    
+
+    // Apply price filter
+    if (priceRange.min || priceRange.max) {
+      baseTracks = baseTracks.filter(track => {
+        const price = parseFloat(track.priceInETH || track.price || '0');
+        const minPrice = parseFloat(priceRange.min || '0');
+        const maxPrice = parseFloat(priceRange.max || '999999');
+        return price >= minPrice && price <= maxPrice;
+      });
+    }
+
+    // Apply sorting
+    baseTracks = sortTracks(baseTracks, sortBy);
+
     return baseTracks;
-  }, [getCurrentTracks, selectedCategory, activeTab, convertDiscoveryTracksToDisplayFormat, genreTracks, debouncedSearchQuery, metadataStrategy]);
+  }, [getCurrentTracks, selectedCategory, activeTab, convertDiscoveryTracksToDisplayFormat, genreTracks, debouncedSearchQuery, metadataStrategy, priceRange, sortBy]);
 
   // Use memoized filtered tracks
   const filteredTracks = getFilteredTracks;
+
+  // Search suggestions based on existing tracks
+  const getSearchSuggestions = useCallback(() => {
+    if (!searchQuery || searchQuery.length < 2) return [];
+
+    const suggestions = new Set<string>();
+    const currentTracks = getCurrentTracks();
+    const lowerQuery = searchQuery.toLowerCase();
+
+    // Add genre suggestions
+    currentTracks.forEach(track => {
+      const genre = Array.isArray(track.genre) ? track.genre.join(' ') : (track.genre || '');
+      if (genre.toLowerCase().includes(lowerQuery)) {
+        suggestions.add(genre);
+      }
+    });
+
+    // Add artist/creator suggestions
+    currentTracks.forEach(track => {
+      const artist = track.artist || track.seller || '';
+      if (artist.toLowerCase().includes(lowerQuery)) {
+        suggestions.add(`by ${artist.slice(0, 10)}...`);
+      }
+    });
+
+    // Add search history suggestions
+    searchHistory.forEach(term => {
+      if (term.toLowerCase().includes(lowerQuery)) {
+        suggestions.add(term);
+      }
+    });
+
+    return Array.from(suggestions).slice(0, 5);
+  }, [searchQuery, getCurrentTracks, searchHistory]);
+
+  // Handle search with history
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setShowSearchSuggestions(false);
+
+    if (query.trim() && !searchHistory.includes(query.trim())) {
+      setSearchHistory(prev => [query.trim(), ...prev.slice(0, 4)]);
+    }
+  }, [searchHistory]);
 
   // Discovery feed generation removed - no auto-trigger on page load
   // Users can manually trigger it if needed
@@ -634,6 +792,11 @@ const ExplorePage: React.FC = () => {
   // Get hot songs from listed NFTs (most recently listed or most popular)
   const hotSongs = contractSongs.slice(0, 21); // Take top 21 listed songs
 
+  // Show skeleton loading
+  if (isInitialLoading) {
+    return <PageSkeleton type="explore" />;
+  }
+
   return (
     <div className="min-h-screen bg-black">
       <style dangerouslySetInnerHTML={{ __html: scrollbarStyles }} />
@@ -776,28 +939,153 @@ const ExplorePage: React.FC = () => {
 
         {/* Search and Category Filters */}
         <div className="mb-8">
-          {/* Search Bar */}
+          {/* Enhanced Search Bar */}
           <div className="mb-6">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Search tracks, genres, artists..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-gray-400 focus:border-white/40"
-              />
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+            <div className="flex gap-4 items-center">
+              <div className="relative flex-1 max-w-lg">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+                <Input
+                  type="text"
+                  placeholder="Search tracks, genres, artists... (try 'electronic', 'hip hop', or token ID)"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  onFocus={() => setShowSearchSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
+                  className="pl-10 pr-20 bg-white/5 border-white/20 text-white placeholder:text-gray-400 focus:border-white/40"
+                />
+
+                {/* Search Actions */}
+                <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSearch('')}
+                      className="text-gray-400 hover:text-white p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    className={`p-1 ${showAdvancedFilters ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {/* Search Suggestions Dropdown */}
+                {showSearchSuggestions && getSearchSuggestions().length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-gray-900 border border-white/20 rounded-lg mt-1 z-50">
+                    {getSearchSuggestions().map((suggestion, index) => (
+                      <button
+                        key={index}
+                        className="w-full text-left px-4 py-2 text-white hover:bg-white/10 text-sm first:rounded-t-lg last:rounded-b-lg"
+                        onClick={() => handleSearch(suggestion)}
+                      >
+                        <Search className="w-3 h-3 inline mr-2 text-gray-400" />
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400 text-sm">Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-white/5 border border-white/20 rounded text-white text-sm px-3 py-2 focus:border-white/40"
                 >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
+                  <option value="recent">Recent</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="popular">Most Popular</option>
+                  <option value="alphabetical">A-Z</option>
+                </select>
+              </div>
+
+              {/* Results Counter */}
+              <div className="text-gray-400 text-sm whitespace-nowrap">
+                {filteredTracks.length} {filteredTracks.length === 1 ? 'track' : 'tracks'}
+                {debouncedSearchQuery && (
+                  <span className="text-white"> for "{debouncedSearchQuery}"</span>
+                )}
+              </div>
             </div>
+
+            {/* Advanced Filters Panel */}
+            {showAdvancedFilters && (
+              <div className="mt-4 bg-white/5 border border-white/10 rounded-lg p-4">
+                <h3 className="text-white font-medium mb-3">Advanced Filters</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Price Range Filter */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Price Range (STT)</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={priceRange.min}
+                        onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                        className="bg-white/5 border-white/20 text-white text-sm"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={priceRange.max}
+                        onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                        className="bg-white/5 border-white/20 text-white text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Search History */}
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Recent Searches</label>
+                    <div className="flex flex-wrap gap-1">
+                      {searchHistory.slice(0, 3).map((term, index) => (
+                        <Button
+                          key={index}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSearch(term)}
+                          className="text-xs bg-white/5 text-gray-300 hover:text-white border border-white/10 px-2 py-1 h-auto"
+                        >
+                          {term}
+                        </Button>
+                      ))}
+                      {searchHistory.length === 0 && (
+                        <span className="text-gray-500 text-xs">No recent searches</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clear Filters */}
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        handleSearch('');
+                        setSelectedCategory('All');
+                        setPriceRange({ min: '', max: '' });
+                        setSortBy('recent');
+                      }}
+                      className="text-gray-400 hover:text-white border-gray-600"
+                    >
+                      Clear All Filters
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Category Filters */}

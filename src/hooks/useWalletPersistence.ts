@@ -1,9 +1,9 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { toast } from 'sonner';
 
 const WALLET_STORAGE_KEY = 'hibeats_wallet_connection';
-const CONNECTION_TIMEOUT = 8000; // Reduced from 15 seconds to 8 seconds
+const CONNECTION_TIMEOUT = 15000; // 15 seconds for reliable reconnection
 
 interface WalletConnectionState {
   isConnected: boolean;
@@ -12,43 +12,108 @@ interface WalletConnectionState {
   timestamp: number;
 }
 
+// Debounce utility function
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): ((...args: Parameters<T>) => void) => {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
+// Pre-load wallet state to determine initial state immediately
+const getInitialState = () => {
+  try {
+    const stored = localStorage.getItem(WALLET_STORAGE_KEY);
+    if (!stored) return { hasStoredState: false, isInitializing: false };
+
+    const state: WalletConnectionState = JSON.parse(stored);
+    const isRecent = Date.now() - state.timestamp < 7 * 24 * 60 * 60 * 1000;
+
+    return {
+      hasStoredState: isRecent,
+      isInitializing: isRecent // Only initialize if we have recent stored state
+    };
+  } catch {
+    return { hasStoredState: false, isInitializing: false };
+  }
+};
+
 export const useWalletPersistence = () => {
   const { address, isConnected, connector } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [hasAttemptedReconnect, setHasAttemptedReconnect] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Initialize based on stored state - prevent flicker by starting with correct state
+  const initialState = useMemo(() => getInitialState(), []);
+  const [isInitializing, setIsInitializing] = useState(initialState.isInitializing);
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Track last saved state to prevent duplicate saves
+  const lastSavedState = useRef<string | null>(null);
+
+  // Debounced save function to prevent excessive saves
+  const debouncedSave = useCallback(
+    debounce((connectedState: boolean, userAddress: string, userConnector: any) => {
+      if (connectedState && userAddress && userConnector) {
+        const state: WalletConnectionState = {
+          isConnected: true,
+          connectorId: userConnector.id,
+          address: userAddress,
+          timestamp: Date.now(),
+        };
+
+        const stateString = JSON.stringify(state);
+
+        // Skip save if state hasn't changed (except timestamp)
+        const stateWithoutTimestamp = JSON.stringify({
+          ...state,
+          timestamp: 0
+        });
+
+        if (lastSavedState.current === stateWithoutTimestamp) {
+          return; // Skip duplicate save
+        }
+
+        try {
+          localStorage.setItem(WALLET_STORAGE_KEY, stateString);
+          lastSavedState.current = stateWithoutTimestamp;
+
+          // Reduce console noise - only log in development
+          if (process.env.NODE_ENV === 'development') {
+            console.log('💾 Wallet connection state saved:', {
+              connectorId: userConnector.id,
+              address: userAddress.slice(0, 6) + '...' + userAddress.slice(-4),
+              timestamp: new Date(state.timestamp).toISOString()
+            });
+          }
+        } catch (error) {
+          console.error('❌ Failed to save wallet state:', error);
+        }
+      }
+    }, 500), // Reduced debounce from 1000ms to 500ms for better UX
+    []
+  );
 
   // Save wallet connection state
   const saveConnectionState = useCallback(() => {
-    if (isConnected && address && connector) {
-      const state: WalletConnectionState = {
-        isConnected: true,
-        connectorId: connector.id,
-        address,
-        timestamp: Date.now(),
-      };
-      
-      try {
-        localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(state));
-        console.log('💾 Wallet connection state saved:', {
-          connectorId: connector.id,
-          address: address.slice(0, 6) + '...' + address.slice(-4),
-          timestamp: new Date(state.timestamp).toISOString()
-        });
-      } catch (error) {
-        console.error('❌ Failed to save wallet state:', error);
-      }
-    }
-  }, [isConnected, address, connector]);
+    debouncedSave(isConnected, address || '', connector);
+  }, [isConnected, address, connector, debouncedSave]);
 
   // Load wallet connection state
   const loadConnectionState = useCallback((): WalletConnectionState | null => {
     try {
       const stored = localStorage.getItem(WALLET_STORAGE_KEY);
       if (!stored) {
-        console.log('📭 No stored wallet connection state found');
+        // Only log in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📭 No stored wallet connection state found');
+        }
         return null;
       }
 
@@ -57,16 +122,21 @@ export const useWalletPersistence = () => {
       // Check if connection is recent (within 7 days)
       const isRecent = Date.now() - state.timestamp < 7 * 24 * 60 * 60 * 1000;
       if (!isRecent) {
-        console.log('⏰ Stored connection state expired, removing...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⏰ Stored connection state expired, removing...');
+        }
         localStorage.removeItem(WALLET_STORAGE_KEY);
         return null;
       }
 
-      console.log('📥 Loaded wallet connection state:', {
-        connectorId: state.connectorId,
-        address: state.address?.slice(0, 6) + '...' + state.address?.slice(-4),
-        age: Math.round((Date.now() - state.timestamp) / 1000 / 60) + ' minutes ago'
-      });
+      // Reduce logging frequency
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📥 Loaded wallet connection state:', {
+          connectorId: state.connectorId,
+          address: state.address?.slice(0, 6) + '...' + state.address?.slice(-4),
+          age: Math.round((Date.now() - state.timestamp) / 1000 / 60) + ' minutes ago'
+        });
+      }
 
       return state;
     } catch (error) {
@@ -175,11 +245,18 @@ export const useWalletPersistence = () => {
     }
   }, [isConnected, hasAttemptedReconnect, isReconnecting, clearConnectionState, loadConnectionState]);
 
-  // Attempt reconnection on mount with optimized timing
+  // Attempt reconnection on mount with immediate execution
   useEffect(() => {
-    // Check if there's a saved connection first
+    // If already connected during page load, skip reconnection
+    if (isConnected && address) {
+      setIsInitializing(false);
+      setHasAttemptedReconnect(true);
+      return;
+    }
+
+    // Check if there's a saved connection
     const savedState = loadConnectionState();
-    
+
     if (!savedState || !savedState.connectorId) {
       // No saved connection, initialize immediately
       setIsInitializing(false);
@@ -189,15 +266,14 @@ export const useWalletPersistence = () => {
 
     // There is a saved connection, attempt to reconnect immediately
     if (!hasAttemptedReconnect) {
-      console.log('🚀 Initializing wallet persistence with saved connection...');
-      // Reduce delay for better UX
-      const timer = setTimeout(() => {
-        attemptReconnection();
-      }, 100); // Reduced from 1000ms to 100ms
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚀 Initializing wallet persistence with saved connection...');
+      }
 
-      return () => clearTimeout(timer);
+      // Execute immediately to prevent flicker
+      attemptReconnection();
     }
-  }, [attemptReconnection, hasAttemptedReconnect, loadConnectionState]);
+  }, [attemptReconnection, hasAttemptedReconnect, loadConnectionState, isConnected, address]);
 
   // Handle page visibility change (when user returns to tab)
   useEffect(() => {

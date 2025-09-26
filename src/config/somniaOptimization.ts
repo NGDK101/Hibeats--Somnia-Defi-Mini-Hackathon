@@ -17,13 +17,13 @@ export const SOMNIA_NETWORK_CONFIG = {
     // Conservative gas limits for common operations
     transfer: BigInt(65_000),
     approve: BigInt(55_000),
-    mint: BigInt(150_000),
-    createProfile: BigInt(180_000),
-    updateProfile: BigInt(120_000),
-    stake: BigInt(120_000),
-    unstake: BigInt(100_000),
-    marketplace: BigInt(200_000),
-    default: BigInt(300_000),
+    mint: BigInt(250_000),
+    createProfile: BigInt(250_000),
+    updateProfile: BigInt(1_500_000), // Increased significantly for complex profile updates
+    stake: BigInt(200_000),
+    unstake: BigInt(150_000),
+    marketplace: BigInt(300_000),
+    default: BigInt(500_000),
   },
   
   // EIP-1559 Gas Pricing (Somnia supports this)

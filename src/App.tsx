@@ -38,11 +38,12 @@ const queryClient = new QueryClient({
 const App = () => (
   <WagmiProvider config={config}>
     <QueryClientProvider client={queryClient}>
-      <RainbowKitProvider 
+      <RainbowKitProvider
         modalSize="compact"
         theme={hibeatsTheme}
         coolMode={true}
         showRecentTransactions={true}
+        initialChain={config.chains[0]}
         appInfo={{
           appName: 'HiBeats',
           disclaimer: ({ Text, Link }) => (

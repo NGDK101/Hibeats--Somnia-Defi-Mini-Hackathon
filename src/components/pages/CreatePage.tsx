@@ -4,6 +4,7 @@ import { LibraryPanel } from "@/components/library/LibraryPanel";
 import { SongDetailsPanel } from "@/components/details/SongDetailsPanel";
 import { PlaylistSidebar } from "@/components/playlist/PlaylistSidebar";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { PageSkeleton } from "@/components/ui/PageSkeleton";
 import { useMusicPlayerContext } from "@/hooks/useMusicPlayerContext";
 import { useGeneratedMusicContext } from "@/hooks/useGeneratedMusicContext";
 
@@ -18,6 +19,18 @@ export const CreatePage = ({ onSongSelect }: CreatePageProps) => {
   const { currentSong, isPlayerVisible } = useMusicPlayerContext();
   const [isPlaying, setIsPlaying] = useState(false);
   const { userTaskIds, generatedMusic, fetchSongsFromSuno, isFetchingSongs, isLoadingCachedSongs } = useGeneratedMusicContext();
+
+  // Loading states
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Initialize loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 800); // Show skeleton for 0.8s
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Auto-fetch songs from Suno when there are task IDs but no songs (fallback)
   // Only fetch if we don't have cached data and not currently fetching
@@ -45,6 +58,11 @@ export const CreatePage = ({ onSongSelect }: CreatePageProps) => {
     setShowPlaylistSidebar(true);
     setSelectedSong(null);
   };
+
+  // Show skeleton loading
+  if (isInitialLoading) {
+    return <PageSkeleton type="create" />;
+  }
 
   return (
     <div className="h-[calc(100vh-6rem)]">

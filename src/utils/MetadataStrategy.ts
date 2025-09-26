@@ -162,27 +162,103 @@ export class MetadataStrategy {
   }
 
   /**
-   * Strategy 5: Search Optimization
+   * Strategy 5: Enhanced Search Optimization
    * Use onchain data for fast filtering, IPFS for detailed view
+   * Supports fuzzy matching and weighted results
    */
   searchTracks(tracks: HybridTrackData[], query: string): HybridTrackData[] {
-    const lowerQuery = query.toLowerCase();
-    
-    return tracks.filter(track => {
-      // Fast onchain search
-      const onChainMatch = 
-        track.genre.toLowerCase().includes(lowerQuery) ||
-        track.tokenId.toString().includes(query);
+    if (!query || query.trim().length === 0) {
+      return tracks;
+    }
 
-      // Detailed IPFS search (if loaded)
-      const ipfsMatch = track.ipfsMetadata ? 
-        track.ipfsMetadata.name.toLowerCase().includes(lowerQuery) ||
-        track.ipfsMetadata.description.toLowerCase().includes(lowerQuery) ||
-        track.ipfsMetadata.aiMetadata.prompt.toLowerCase().includes(lowerQuery)
-        : false;
+    const lowerQuery = query.toLowerCase().trim();
+    const searchTerms = lowerQuery.split(' ').filter(term => term.length > 0);
 
-      return onChainMatch || ipfsMatch;
+    const scoredTracks = tracks.map(track => {
+      let score = 0;
+      const searchableText = this.getSearchableText(track);
+
+      // Exact matches get highest score
+      if (searchableText.toLowerCase().includes(lowerQuery)) {
+        score += 100;
+      }
+
+      // Partial matches for each search term
+      searchTerms.forEach(term => {
+        if (searchableText.toLowerCase().includes(term)) {
+          score += 50;
+        }
+
+        // Genre matching gets bonus points
+        if (track.genre.toLowerCase().includes(term)) {
+          score += 30;
+        }
+
+        // Token ID exact match
+        if (track.tokenId.toString() === term) {
+          score += 80;
+        }
+
+        // Artist/creator partial match
+        if (track.creator.toLowerCase().includes(term)) {
+          score += 40;
+        }
+      });
+
+      // Fuzzy matching for typos (simple levenshtein-like)
+      if (score === 0) {
+        score += this.fuzzyMatchScore(searchableText.toLowerCase(), lowerQuery);
+      }
+
+      return { track, score };
     });
+
+    // Filter out tracks with no match and sort by relevance
+    return scoredTracks
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ track }) => track);
+  }
+
+  /**
+   * Get all searchable text from a track
+   */
+  private getSearchableText(track: HybridTrackData): string {
+    const parts = [
+      track.genre,
+      track.tokenId.toString(),
+      track.creator
+    ];
+
+    if (track.ipfsMetadata) {
+      parts.push(
+        track.ipfsMetadata.name,
+        track.ipfsMetadata.description,
+        track.ipfsMetadata.aiMetadata?.prompt || '',
+        ...(track.ipfsMetadata.attributes?.map(attr => `${attr.trait_type} ${attr.value}`) || [])
+      );
+    }
+
+    return parts.filter(Boolean).join(' ');
+  }
+
+  /**
+   * Simple fuzzy matching for typo tolerance
+   */
+  private fuzzyMatchScore(text: string, query: string): number {
+    if (query.length < 3) return 0;
+
+    let matches = 0;
+    const queryChars = query.split('');
+
+    for (const char of queryChars) {
+      if (text.includes(char)) {
+        matches++;
+      }
+    }
+
+    const similarity = matches / query.length;
+    return similarity > 0.6 ? Math.floor(similarity * 20) : 0;
   }
 
   /**

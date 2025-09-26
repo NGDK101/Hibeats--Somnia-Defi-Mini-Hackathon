@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useWalletAuthentication } from '@/hooks/useWalletAuthentication';
-import { useWalletPersistence } from '@/hooks/useWalletPersistence';
+import { useWalletPersistenceContext } from '@/contexts/WalletPersistenceContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import logoImage from '@/images/assets/logo.png';
@@ -10,51 +10,20 @@ import { Loader2 } from 'lucide-react';
 export const SimpleAuthModal = () => {
   const { address, isConnected } = useAccount();
   const { authState, authenticateWallet, isPending, isInitialized } = useWalletAuthentication();
-  const { isInitializing, isReconnecting } = useWalletPersistence();
+  const { isInitializing, isReconnecting } = useWalletPersistenceContext();
   const [showModal, setShowModal] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [hasDelayed, setHasDelayed] = useState(false);
 
-  // Add stabilization delay to prevent flickering
+  // OpenSea pattern: Simple, immediate auth check (no delays)
   useEffect(() => {
-    if (isConnected && address && !hasDelayed) {
-      // Wait for systems to stabilize
-      const timer = setTimeout(() => {
-        setHasDelayed(true);
-      }, 500); // 500ms delay to ensure all systems are stable
-      
-      return () => clearTimeout(timer);
-    }
-    
-    if (!isConnected || !address) {
-      setHasDelayed(false);
-    }
-  }, [isConnected, address, hasDelayed]);
-
-  // Main modal logic with stabilization
-  useEffect(() => {
-    // Don't show modal during wallet initialization or reconnection
-    if (isInitializing || isReconnecting || !hasDelayed) {
-      console.log('⏳ Systems not ready for auth modal:', { isInitializing, isReconnecting, hasDelayed });
-      if (showModal) {
-        setIsVisible(false);
-        setTimeout(() => setShowModal(false), 300);
-      }
-      return;
-    }
-
-    // Only proceed if BOTH wallet and auth are fully initialized and systems are stable
-    if (isConnected && address && isInitialized && hasDelayed) {
+    if (isConnected && address && isInitialized) {
       const shouldShow = !authState.isAuthenticated;
-      console.log('🔍 Final auth check:', {
-        isConnected,
-        address: address.slice(0, 6) + '...',
-        isInitialized,
-        isAuthenticated: authState.isAuthenticated,
-        hasDelayed,
-        shouldShow
-      });
-      
+
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development' && shouldShow) {
+        console.log('🔍 Auth needed for:', address.slice(0, 6) + '...');
+      }
+
       if (shouldShow && !showModal) {
         setShowModal(true);
         setTimeout(() => setIsVisible(true), 10);
@@ -62,23 +31,12 @@ export const SimpleAuthModal = () => {
         setIsVisible(false);
         setTimeout(() => setShowModal(false), 300);
       }
-    } else {
-      // Hide modal if any system is not ready
-      if (showModal) {
-        setIsVisible(false);
-        setTimeout(() => setShowModal(false), 300);
-      }
+    } else if (showModal) {
+      // Hide modal if wallet disconnected
+      setIsVisible(false);
+      setTimeout(() => setShowModal(false), 300);
     }
-  }, [
-    isConnected, 
-    address, 
-    isInitialized, 
-    authState.isAuthenticated, 
-    showModal, 
-    isInitializing, 
-    isReconnecting,
-    hasDelayed
-  ]);
+  }, [isConnected, address, isInitialized, authState.isAuthenticated, showModal]);
 
   const handleSignIn = async () => {
     const success = await authenticateWallet();

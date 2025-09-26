@@ -218,21 +218,6 @@ export const WalletConnect = () => {
             );
           }}
         </ConnectButton.Custom>
-
-        {/* MetaMask Installation Warning */}
-        {showMetaMaskWarning && (
-          <div className="hidden sm:block">
-            <Button
-              onClick={() => window.open('https://metamask.io/download/', '_blank')}
-              variant="outline"
-              size="sm"
-              className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 text-xs"
-            >
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              Install MetaMask
-            </Button>
-          </div>
-        )}
       </div>
     );
   }

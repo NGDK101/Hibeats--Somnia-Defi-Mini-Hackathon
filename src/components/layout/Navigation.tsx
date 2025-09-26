@@ -6,11 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RewardHistoryPanel } from "@/components/notifications/RewardHistoryPanel";
+import { SearchModal } from "@/components/ui/SearchModal";
 import { cn } from "@/lib/utils";
 import logoImage from "@/images/logo hibeats.png";
 import beatsImage from "@/images/beats.png";
 import { WalletConnect } from "@/components/ui/WalletConnect";
 import { NotificationIcon } from "@/components/notifications/NotificationIcon";
+import {
+  SkeletonNavbar,
+  SkeletonAvatar,
+  SkeletonButton,
+  SkeletonText,
+  SkeletonNavItem
+} from "@/components/ui/SkeletonLoader";
 import { useToken } from "@/hooks/useToken";
 import { useProfile } from "@/hooks/useProfile";
 import { useSocial } from "@/hooks/useSocial";
@@ -30,8 +38,11 @@ interface NavigationProps {
 
 export const Navigation = ({ activeTab, onTabChange, className, onNavigationStart }: NavigationProps) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isRewardPanelOpen, setIsRewardPanelOpen] = useState(false);
   const [isProfileDataStable, setIsProfileDataStable] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(true);
+
   const { balance, tokenSymbol, forceRefreshBalance } = useToken();
   const { address } = useAccount();
   const location = useLocation();
@@ -123,6 +134,42 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
     };
   }, [cancelNavigation]);
 
+  // Control skeleton loading - OpenSea style: show skeleton briefly on initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSkeleton(false);
+    }, 800); // Show skeleton for 800ms on initial load
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Keyboard shortcut for search modal (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Update profile data stability
+  useEffect(() => {
+    if (address) {
+      // Profile is stable once we have any data or after a short delay
+      const timer = setTimeout(() => {
+        setIsProfileDataStable(true);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    } else {
+      setIsProfileDataStable(false);
+    }
+  }, [address, userProfileData, socialProfile]);
+
   // Convert userProfileData array to object if it exists (same logic as in Portfolio)
   const profileFromContract = userProfileData ? (() => {
     return {
@@ -209,6 +256,46 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
 
   const currentActiveTab = getCurrentActiveTab();
 
+  // Show skeleton loading on initial load - OpenSea style
+  if (showSkeleton) {
+    return (
+      <header className={cn(
+        "sticky top-0 z-50 w-full bg-transparent shadow-none transition-all duration-300",
+        className
+      )}>
+        <div className="container flex h-16 items-center px-6">
+          {/* Logo skeleton */}
+          <div className="flex items-center mr-8">
+            <div className="flex items-center space-x-2">
+              <SkeletonAvatar size="sm" />
+              <SkeletonText width="w-24" height="h-6" />
+            </div>
+          </div>
+
+          {/* Navigation skeleton */}
+          <nav className="flex items-center space-x-2 mr-8">
+            <SkeletonNavItem className="w-16" />
+            <SkeletonNavItem className="w-14" />
+            <SkeletonNavItem className="w-20" />
+          </nav>
+
+          {/* Search skeleton */}
+          <div className="flex-1 max-w-md mr-8">
+            <SkeletonButton height="h-10" className="w-full" />
+          </div>
+
+          {/* Right side skeleton */}
+          <div className="flex items-center space-x-4">
+            <SkeletonButton width="w-16" height="h-8" />
+            <SkeletonButton width="w-20" height="h-8" />
+            <SkeletonAvatar size="sm" />
+            <SkeletonButton width="w-28" height="h-10" />
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className={cn(
       "sticky top-0 z-50 w-full bg-transparent  shadow-none transition-all duration-300",
@@ -254,15 +341,20 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
 
         {/* Search Bar */}
         <div className="flex-1 max-w-md mr-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="search by creator or title song"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-input/50 border-glass-border focus:border-primary/50 rounded-full"
-            />
-          </div>
+          <button
+            onClick={() => setIsSearchModalOpen(true)}
+            className="w-full flex items-center px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-full text-left transition-colors group"
+          >
+            <Search className="w-4 h-4 text-gray-400 mr-3 group-hover:text-gray-300" />
+            <span className="text-sm text-gray-400 group-hover:text-gray-300">
+              Search tracks, creators, genres...
+            </span>
+            <div className="ml-auto flex items-center space-x-1">
+              <kbd className="px-2 py-1 bg-white/10 rounded text-xs text-gray-500 group-hover:text-gray-400">
+                ⌘K
+              </kbd>
+            </div>
+          </button>
         </div>
 
         {/* User Info & Wallet */}
@@ -363,6 +455,13 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
           <WalletConnect />
         </div>
       </div>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        initialQuery={searchQuery}
+      />
     </header>
   );
 };

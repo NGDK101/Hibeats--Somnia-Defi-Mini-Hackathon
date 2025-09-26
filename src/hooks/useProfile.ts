@@ -3,12 +3,17 @@ import { parseEther } from 'viem';
 import { CONTRACT_ADDRESSES, HIBEATS_PROFILE_ABI, type ProfileData } from '../contracts';
 import { CreatorLevel } from '../types/music';
 import { toast } from 'sonner';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { checkMetaMask } from '../utils/metamask-check';
+
+// Global state to prevent multiple profile creations across all hook instances
+let globalProfileCreationInProgress = false;
+let globalProfileCreationPromise: Promise<void> | null = null;
 
 export function useProfile() {
   const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const [transactionSubmitted, setTransactionSubmitted] = useState(false);
   const hasShownSuccessToast = useRef(false);
   
   // Write contract operations
@@ -48,12 +53,17 @@ export function useProfile() {
     args: address ? [address] : undefined,
   });
 
-  // Read profile exists
-  const { data: profileExists } = useReadContract({
+  // Read profile exists with immediate result
+  const { data: profileExists, isLoading: profileExistsLoading } = useReadContract({
     address: CONTRACT_ADDRESSES.HIBEATS_PROFILE,
     abi: HIBEATS_PROFILE_ABI,
     functionName: 'hasProfile',
     args: address ? [address] : undefined,
+    // Add query options for faster response
+    query: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    }
   });
 
   // Read user stats
@@ -74,8 +84,30 @@ export function useProfile() {
   const refetchFollowers = () => Promise.resolve();
   const refetchFollowing = () => Promise.resolve();
 
-  // Create profile
-  const createProfile = async (profileData: ProfileData) => {
+  // Create profile with debounce protection
+  const createProfile = useCallback(async (profileData: ProfileData) => {
+    // Global protection against multiple profile creations
+    if (globalProfileCreationInProgress) {
+      console.warn('Profile creation already in progress globally, skipping...');
+      if (globalProfileCreationPromise) {
+        // Wait for the existing promise to complete
+        return await globalProfileCreationPromise;
+      }
+      return;
+    }
+
+    // Local protection
+    if (isLoading || isPending || isConfirming || transactionSubmitted) {
+      console.warn('Profile creation already in progress locally, skipping...');
+      return;
+    }
+
+    // Check if profile already exists
+    if (profileExists) {
+      toast.error('Profile already exists');
+      return;
+    }
+
     // Check MetaMask
     const metamaskStatus = checkMetaMask();
 
@@ -94,30 +126,50 @@ export function useProfile() {
       return;
     }
 
-    try {
-      setIsLoading(true);
+    // Set global flag
+    globalProfileCreationInProgress = true;
+    
+    // Create a promise to track this creation
+    globalProfileCreationPromise = (async () => {
+      try {
+        setIsLoading(true);
+        setTransactionSubmitted(true);
 
-      writeContract({
-        address: CONTRACT_ADDRESSES.HIBEATS_PROFILE,
-        abi: HIBEATS_PROFILE_ABI,
-        functionName: 'createProfile',
-        args: [
-          profileData.username,
-          profileData.displayName || profileData.username,
-          profileData.bio || '',
-          profileData.avatarURI || '',
-        ],
-      });
+        writeContract({
+          address: CONTRACT_ADDRESSES.HIBEATS_PROFILE,
+          abi: HIBEATS_PROFILE_ABI,
+          functionName: 'createProfile',
+          args: [
+            profileData.username,
+            profileData.displayName || profileData.username,
+            profileData.bio || '',
+            profileData.avatarURI || '',
+          ],
+        });
 
-      toast.success('Opening MetaMask...');
-    } catch (err: any) {
-      toast.error(`Failed: ${err?.message || 'Unknown error'}`);
-      setIsLoading(false);
-    }
-  };
+        toast.success('Opening MetaMask...');
+      } catch (err: any) {
+        console.error('Create profile error:', err);
+        toast.error(`Failed: ${err?.message || 'Unknown error'}`);
+        setIsLoading(false);
+        setTransactionSubmitted(false);
+        globalProfileCreationInProgress = false;
+        globalProfileCreationPromise = null;
+        throw err;
+      }
+    })();
+
+    return await globalProfileCreationPromise;
+  }, [address, profileExists, isLoading, isPending, isConfirming, transactionSubmitted, writeContract]);
 
   // Update profile (8 params - unified HiBeatsProfile)
   const updateProfile = async (profileData: Partial<ProfileData>) => {
+    // Prevent duplicate transactions
+    if (isLoading || isPending || isConfirming) {
+      console.warn('Profile update already in progress, skipping...');
+      return;
+    }
+
     if (!address) {
       toast.error('Please connect your wallet first');
       return;
@@ -133,8 +185,8 @@ export function useProfile() {
         args: [
           profileData.displayName || '',
           profileData.bio || '',
-          profileData.avatar || profileData.avatarURI || '',      // profileImageUrl
-          profileData.coverImage || profileData.bannerURI || '',  // bannerImageUrl
+          profileData.avatarURI || '',      // profileImageUrl
+          profileData.bannerURI || '',  // bannerImageUrl
           profileData.website || '',
           profileData.twitter || '',                               // ✅ Added
           profileData.instagram || '',                             // ✅ Added
@@ -154,6 +206,12 @@ export function useProfile() {
 
   // Follow user
   const followUser = async (userAddress: string) => {
+    // Prevent duplicate transactions
+    if (isLoading || isPending || isConfirming) {
+      console.warn('Follow action already in progress, skipping...');
+      return;
+    }
+
     if (!address) {
       toast.error('Please connect your wallet first');
       return;
@@ -189,6 +247,12 @@ export function useProfile() {
 
   // Unfollow user
   const unfollowUser = async (userAddress: string) => {
+    // Prevent duplicate transactions
+    if (isLoading || isPending || isConfirming) {
+      console.warn('Unfollow action already in progress, skipping...');
+      return;
+    }
+
     if (!address) {
       toast.error('Please connect your wallet first');
       return;
@@ -261,12 +325,17 @@ export function useProfile() {
   useEffect(() => {
     if (isSuccess && !hasShownSuccessToast.current) {
       setIsLoading(false);
+      setTransactionSubmitted(false);
+      // Reset global state
+      globalProfileCreationInProgress = false;
+      globalProfileCreationPromise = null;
+      
       refetchProfile();
       refetchStats();
       refetchCollection();
       refetchFollowers();
       refetchFollowing();
-      toast.success('Profile transaction completed!');
+      toast.success('transaction completed!');
       hasShownSuccessToast.current = true;
     }
   }, [isSuccess, refetchProfile, refetchStats, refetchCollection, refetchFollowers, refetchFollowing]);
@@ -274,6 +343,11 @@ export function useProfile() {
   useEffect(() => {
     if (error) {
       setIsLoading(false);
+      setTransactionSubmitted(false);
+      // Reset global state on error
+      globalProfileCreationInProgress = false;
+      globalProfileCreationPromise = null;
+      
       toast.error('Profile transaction failed: ' + error.message);
     }
   }, [error]);
@@ -310,6 +384,7 @@ export function useProfile() {
     // Data
     userProfile,
     profileExists: profileExists || false,
+    profileExistsLoading, // Export loading state
     userStats,
     collectedNFTs: collectedNFTs || [],
     followers: followers || [],

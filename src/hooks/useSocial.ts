@@ -50,9 +50,8 @@ export const useSocial = () => {
       if (profile) {
         setSocialProfiles(prev => new Map(prev).set(address, profile));
       } else {
-        // Create default profile for new users
-        const defaultProfile = profileStorage.createDefaultProfile(address);
-        setSocialProfiles(prev => new Map(prev).set(address, defaultProfile));
+        // Don't create default profile automatically - let user create their own
+        console.log('No profile found for address:', address);
       }
     }
   }, [address]);
@@ -209,9 +208,10 @@ export const useSocial = () => {
       let profile = profileStorage.getProfile(userAddress);
       
       if (!profile || forceRefresh) {
-        // Create default profile if doesn't exist
+        // Don't create default profile if doesn't exist - return null instead
         if (!profile) {
-          profile = profileStorage.createDefaultProfile(userAddress);
+          console.log('No profile found for user:', userAddress);
+          return null;
         }
       }
 
@@ -238,10 +238,10 @@ export const useSocial = () => {
       setError(null);
       setIsLoading(true);
 
-      // Get current profile or create default
+      // Get current profile - don't create default if doesn't exist
       let currentProfile = profileStorage.getProfile(address);
       if (!currentProfile) {
-        currentProfile = profileStorage.createDefaultProfile(address);
+        throw new Error('Profile does not exist. Please create a profile first.');
       }
 
       // Update profile in storage

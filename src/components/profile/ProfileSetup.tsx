@@ -123,6 +123,12 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.warn('Profile creation already in progress, skipping...');
+      return;
+    }
+    
     if (!formData.username || !formData.displayName) {
       toast({
         title: "Required fields",
@@ -147,14 +153,14 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps) {
         username: formData.username,
         displayName: formData.displayName,
         bio: formData.bio,
-        avatar: formData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.displayName)}&background=6366f1&color=fff`
+        avatarURI: formData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.displayName)}&background=6366f1&color=fff`
       };
 
       await createProfile(profileData);
       
       toast({
-        title: "Profile created!",
-        description: "Welcome to HiBeats! Your profile has been created successfully.",
+        title: "Profile creation initiated!",
+        description: "Please check your wallet to confirm the transaction.",
       });
 
       if (onComplete) {

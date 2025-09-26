@@ -41,13 +41,12 @@ import {
 import { useOptimisticProfile } from '@/hooks/useOptimisticProfile';
 import { useProfile } from '@/hooks/useProfile';
 import { useIPFS } from '@/hooks/useIPFS';
-import { useAccount } from 'wagmi';
-import { useWalletPersistence } from '@/hooks/useWalletPersistence';
+import { useAccount, useWriteContract } from 'wagmi';
+import { useWalletPersistenceContext } from '@/contexts/WalletPersistenceContext';
 import { toast } from 'sonner';
 import { HiBeatsMarketplaceAdvancedABI } from '@/contracts/HiBeatsMarketplaceAdvancedABI';
-// Remove these imports as we now use createProfile hook
-// import { HIBEATS_PROFILE_ABI } from '@/contracts/HiBeatsProfileABI';
-// import { CONTRACT_ADDRESSES } from '@/config/web3';
+import { HIBEATS_PROFILE_ABI } from '@/contracts/HiBeatsProfileABI';
+import { CONTRACT_ADDRESSES } from '@/config/web3';
 import defaultAvatar from '@/images/assets/defaultprofile.gif';
 import { ImageWithFallback } from '@/components/ui/ImageWithFallback';
 
@@ -107,6 +106,7 @@ interface SocialProfileHeaderProps {
   profile: ProfileData;
   isOwnProfile: boolean;
   hasProfile?: boolean;
+  profileExistsLoading?: boolean;
   isFollowing?: boolean;
   onFollow?: () => void;
   onUnfollow?: () => void;
@@ -118,6 +118,7 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   profile,
   isOwnProfile,
   hasProfile = true,
+  profileExistsLoading = false,
   isFollowing = false,
   onFollow,
   onUnfollow,
@@ -125,7 +126,7 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   onProfileCreate
 }) => {
   // Get wallet persistence states
-  const { isInitializing, isReconnecting } = useWalletPersistence();
+  const { isInitializing, isReconnecting } = useWalletPersistenceContext();
   
   // Safety check for profile data
   if (!profile) {
@@ -172,6 +173,7 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   // Merge optimistic profile with prop profile as fallback
   const displayProfile = profile;
 
+
   // Combined loading state dari berbagai sumber
   const isUploading = ipfsUploading || isLocalUploading;
   const displayUploadProgress = uploadProgress;
@@ -189,6 +191,7 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [bannerPreview, setBannerPreview] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
+  const { writeContractAsync } = useWriteContract();
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -201,10 +204,10 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
       return;
     }
 
-    // Wait for all systems to stabilize
+    // Minimal delay - reduce from 300ms to 100ms for better UX
     const timer = setTimeout(() => {
       setIsProfileSystemsReady(true);
-    }, 800); // 800ms delay to ensure profile data is loaded
+    }, 100); // Reduced from 300ms to 100ms
 
     return () => clearTimeout(timer);
   }, [isInitializing, isReconnecting, hasProfile]);
@@ -212,7 +215,8 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
   // Sync local hasProfile state with prop only when systems are ready
   useEffect(() => {
     if (isProfileSystemsReady) {
-      setLocalHasProfile(hasProfile);
+      // Only update if there's a real change to prevent unnecessary re-renders
+      setLocalHasProfile(prev => prev !== hasProfile ? hasProfile : prev);
     }
   }, [hasProfile, isProfileSystemsReady]);
 
@@ -507,6 +511,12 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
 
     if (!validateCreateForm()) return;
 
+    // Prevent duplicate submissions
+    if (isCreating) {
+      console.warn('Profile creation already in progress, skipping...');
+      return;
+    }
+
     // Check wallet connection
     if (!address) {
       toast.error('Please connect your wallet first');
@@ -521,21 +531,24 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
     });
 
     try {
-      // Use createProfile hook - THIS WILL ONLY TRIGGER ONE TRANSACTION
-      console.log('Creating profile with createProfile hook...');
-      await createProfile({
-        username: createForm.username,
-        displayName: createForm.displayName || createForm.username,
-        bio: createForm.bio || '',
-        profileImageUrl: createForm.profileImageUrl || ''
-      });
+      // Call parent callback instead of direct contract interaction
+      if (onProfileCreate) {
+        await onProfileCreate({
+          username: createForm.username,
+          displayName: createForm.displayName || createForm.username,
+          bio: createForm.bio || '',
+          avatarURI: createForm.profileImageUrl || '' // Changed to avatarURI to match ProfileData interface
+        });
+      } else {
+        throw new Error('Profile creation callback not provided');
+      }
 
       // Dismiss loading toast
       toast.dismiss(loadingToastId);
       
       // Show success message
-      toast.success('🎉 Profile created successfully!', {
-        description: 'Your profile is being updated...'
+      toast.success('🎉 Profile creation initiated!', {
+        description: 'Your profile is being created...'
       });
 
       // Close form immediately
@@ -543,6 +556,40 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
 
       // Immediately update local state to hide overlay
       setLocalHasProfile(true);
+
+      // Wait a bit for blockchain confirmation, then refresh
+      setTimeout(async () => {
+        try {
+          // Trigger profile refresh if onProfileUpdate callback is available
+          if (onProfileUpdate) {
+            console.log('🔄 Triggering profile refresh via callback...');
+            
+            // This will trigger a refresh in the parent component
+            await onProfileUpdate({
+              displayName: createForm.displayName || createForm.username,
+              bio: createForm.bio || '',
+              avatar: createForm.profileImageUrl || '',
+              username: createForm.username
+            });
+          }
+
+          // NOTE: Removed duplicate onProfileCreate call to prevent multiple transactions
+
+        } catch (error) {
+          console.error('Error refreshing profile via callbacks:', error);
+          // Don't show error toast as profile was created successfully
+          // Just log for debugging
+          
+          // Show a gentler message to user
+          toast.info('Profile created successfully! Changes will appear shortly.', {
+            description: 'If you don\'t see changes, try refreshing the page.',
+            action: {
+              label: 'Refresh',
+              onClick: () => window.location.reload()
+            }
+          });
+        }
+      }, 2000); // Reduced from 3000ms to 2000ms for faster refresh
 
       // Reset form
       setCreateForm({
@@ -553,18 +600,6 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
       });
       setAvatarPreview("");
       setBannerPreview("");
-
-      // ONLY call onProfileCreate once - no duplicate calls
-      if (onProfileCreate) {
-        console.log('🔄 Triggering profile creation callback...');
-        await onProfileCreate({
-          username: createForm.username,
-          displayName: createForm.displayName || createForm.username,
-          bio: createForm.bio || '',
-          profileImageUrl: createForm.profileImageUrl || ''
-        });
-      }
-
     } catch (error) {
       console.error('Error creating profile:', error);
       
@@ -605,8 +640,14 @@ export const SocialProfileHeader: React.FC<SocialProfileHeaderProps> = ({
 
   return (
     <div className="relative">
-      {/* Create Profile Overlay - Only show when systems are ready and no profile */}
-      {isProfileSystemsReady && !localHasProfile && (
+      {/* Create Profile Overlay - Only show when systems are ready, no profile, wallet connected, and not loading */}
+      {isProfileSystemsReady && 
+       !localHasProfile && 
+       !profileExistsLoading &&
+       isConnected && 
+       address && 
+       !isInitializing && 
+       !isReconnecting && (
         <div className="absolute top-0 left-0 right-0 bottom-0 backdrop-blur-lg bg-gradient-to-br from-black/85 via-accent/10 to-black/85 z-30 flex items-center justify-center h-full">
           <div className="text-center space-y-6 p-8 bg-gradient-to-br from-background/95 via-accent/5 to-background/95 rounded-2xl border border-accent/30 backdrop-blur-sm shadow-2xl shadow-accent/10 max-w-md mx-4">
             {/* Animated Icon */}

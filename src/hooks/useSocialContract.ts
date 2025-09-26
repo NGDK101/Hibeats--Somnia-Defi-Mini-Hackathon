@@ -1679,8 +1679,8 @@ export const useSocialContract = () => {
         username: profileData[1] || `user_${userAddress.slice(-6)}`,
         displayName: profileData[2] || `User ${userAddress.slice(-4)}`,
         bio: profileData[3] || '',
-        avatar: profileData[4] || '/api/placeholder/150/150',
-        coverImage: profileData[5] || '/api/placeholder/1200/300',
+        avatar: profileData[4] || '',
+        coverImage: profileData[5] || '',
         website: profileData[6] || '',
         twitter: profileData[7] || '',
         instagram: profileData[8] || '',
@@ -1714,8 +1714,8 @@ export const useSocialContract = () => {
         username: profileData[1] || `user_${userAddress.slice(-6)}`,
         displayName: profileData[2] || `User ${userAddress.slice(-4)}`,
         bio: profileData[3] || '',
-        avatar: profileData[4] || '/api/placeholder/150/150',
-        coverImage: profileData[5] || '/api/placeholder/1200/300',
+        avatar: profileData[4] || '',
+        coverImage: profileData[5] || '',
         website: profileData[6] || '',
         twitter: profileData[7] || '',
         instagram: profileData[8] || '',
@@ -1758,7 +1758,7 @@ export const useSocialContract = () => {
             profileData.username || `user_${address.slice(-6)}`,
             profileData.displayName || `User ${address.slice(-4)}`,
             profileData.bio || '',
-            profileData.avatar || '/api/placeholder/150/150'
+            profileData.avatar || ''
           ] as const,
         });
       } else {
@@ -1774,8 +1774,8 @@ export const useSocialContract = () => {
             username: `user_${address.slice(-6)}`,
             displayName: `User ${address.slice(-4)}`,
             bio: '',
-            avatar: '/api/placeholder/150/150',
-            coverImage: '/api/placeholder/1200/300',
+            avatar: '',
+            coverImage: '',
             website: '',
             twitter: '',
             instagram: '',
@@ -1795,8 +1795,8 @@ export const useSocialContract = () => {
         const updatedData = {
           displayName: profileData.displayName ?? currentProfile.displayName ?? `User ${address.slice(-4)}`,
           bio: profileData.bio ?? currentProfile.bio ?? '',
-          avatar: profileData.avatar ?? currentProfile.avatar ?? '/api/placeholder/150/150',
-          coverImage: profileData.coverImage ?? currentProfile.coverImage ?? '/api/placeholder/1200/300',
+          avatar: profileData.avatar ?? currentProfile.avatar ?? '',
+          coverImage: profileData.coverImage ?? currentProfile.coverImage ?? '',
           website: profileData.website ?? currentProfile.website ?? '',
           twitter: profileData.twitter ?? currentProfile.twitter ?? '',
           instagram: profileData.instagram ?? currentProfile.instagram ?? '',

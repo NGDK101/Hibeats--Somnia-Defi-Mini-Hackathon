@@ -200,10 +200,10 @@ class ProfileStorageManager {
     const defaultProfile: SocialProfile = {
       address,
       username: `user_${address.slice(-6)}`,
-      displayName: `Music Creator`,
+      displayName: ``,
       bio: '',
-      avatar: '/api/placeholder/150/150',
-      coverImage: '/api/placeholder/1200/300',
+      avatar: '',
+      coverImage: '',
       website: '',
       isVerified: false,
       followerCount: 0,
