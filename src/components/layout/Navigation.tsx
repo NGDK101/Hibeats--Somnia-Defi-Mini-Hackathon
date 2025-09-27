@@ -346,7 +346,7 @@ export const Navigation = ({ activeTab, onTabChange, className, onNavigationStar
             className="w-full flex items-center px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/20 rounded-full text-left transition-colors group"
           >
             <Search className="w-4 h-4 text-gray-400 mr-3 group-hover:text-gray-300" />
-            <span className="text-sm text-gray-400 group-hover:text-gray-300">
+            <span className="text-xs text-gray-400 group-hover:text-gray-300">
               Search tracks, creators, genres...
             </span>
             <div className="ml-auto flex items-center space-x-1">
