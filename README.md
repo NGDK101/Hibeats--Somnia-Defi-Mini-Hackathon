@@ -1,3 +1,4 @@
+#HiBeats - AI-Powered Music NFT Platform
 
 ![Built on Somnia](https://img.shields.io/badge/Built%20on-Somnia-blueviolet?style=for-the-badge&logo=ethereum)  
 ![AI Powered](https://img.shields.io/badge/AI-Powered-lightblue?style=for-the-badge&logo=openai)  
