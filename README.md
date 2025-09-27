@@ -140,9 +140,9 @@ I created HiBeats to show how blockchain and AI together can reshape music owner
 
 ## 📚 Documentation & Resources  
 
-- 📖 [Website](https://www.hibeats.fun/) *(example placeholder, update if live)*  
-- 📑 [HiBeats Pitch Deck](#)  
-- 🎥 [Demo Video](#)  
+- 📖 [Website](https://www.hibeats.xyz)
+- 📑 [HiBeats Pitch Deck]()  
+- 🎥 [Demo Video](https://drive.google.com/drive/folders/1GRXqQw2aVn-GUDIRMctkXrcnAAhMlRvB)  
 
 ---
 
