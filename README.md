@@ -1,4 +1,4 @@
-# HiBeats
+![hibeats-ai-music-flow](https://github.com/user-attachments/assets/22b5f6e2-b7df-45b9-b058-b87fd0a9c446)# HiBeats
 ![Built on Somnia](https://img.shields.io/badge/Built%20on-Somnia-blueviolet?style=for-the-badge&logo=ethereum)  
 ![AI Powered](https://img.shields.io/badge/AI-Powered-lightblue?style=for-the-badge&logo=openai)  
 ![License MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)  
@@ -6,7 +6,8 @@
 ## Project Demo
 [Go to site](https://www.hibeats.xyz/)
 
-<img width="1918" height="921" alt="Screenshot 2025-09-27 165912" src="https://github.com/user-attachments/assets/ee1ed4e1-0ee3-4e3c-a175-b2cfc01dcc4e" />
+<img width="1918" height="921" alt="Screenshot 2025-09-27 165912" src="https://github.com/user-attachments/assets/ba7f5ada-f2fb-4059-943a-277e4d6870a7" />
+
 
 ---
 # Overview
@@ -120,7 +121,7 @@ In building a comprehensive AI-powered music creation and NFT marketplace, we id
 
 # How We Achieve AI-Powered Music Creation
 
-![hibeats-ai-music-flow](https://github.com/user-attachments/assets/8c1762b6-c59f-45cf-ad6d-854da19ed87f)<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+![Uploading hibeats-ai-music-flow<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="userGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
@@ -299,7 +300,8 @@ In building a comprehensive AI-powered music creation and NFT marketplace, we id
       <polygon points="0 0, 10 3.5, 0 7" fill="#64748B"/>
     </marker>
   </defs>
-</svg>
+</svg>.svg…]()
+
 
 <img width="2678" height="1422" alt="diagram-export-9-27-2025-4_44_53-PM" src="https://github.com/user-attachments/assets/ce910e75-ed0a-497b-b202-eea63f41c564" />
 
@@ -324,12 +326,9 @@ By combining Suno AI technology with Somnia blockchain infrastructure, HiBeats u
 
 ## Marketplace
 
-<img width="1919" height="918" alt="Screenshot 2025-09-27 170239" src="https://github.com/user-attachments/assets/6f40d597-8ce7-4fd3-9ca2-bd00f032e0cc" />
-
-
-
-
-<img width="1914" height="920" alt="Screenshot 2025-09-27 170340" src="https://github.com/user-attachments/assets/a09c72b7-b803-408a-b799-49b8be435adc" />
+<img width="1919" height="918" alt="Screenshot 2025-09-27 170239" src="https://github.com/user-attachments/assets/5b76def4-40b5-4b9a-9bd6-9d238b53be44" />
+<img width="1919" height="914" alt="Screenshot 2025-09-27 170302" src="https://github.com/user-attachments/assets/43bef1b7-c02e-4e86-b8a0-40c0d5fe8f19" />
+<img width="1914" height="920" alt="Screenshot 2025-09-27 170340" src="https://github.com/user-attachments/assets/2842f8e4-9a01-448a-bebf-0805a6655284" />
 
 
 HiBeats incorporates a purpose-built NFT marketplace that enables users to trade, discover, and collect AI-generated music directly within the platform without needing external marketplaces. Inspired by modern marketplace architectures, the system is tightly integrated into the HiBeats ecosystem to facilitate real-time, on-chain music NFT trading with minimal friction.
