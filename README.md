@@ -1,4 +1,4 @@
-![hibeats-ai-music-flow](https://github.com/user-attachments/assets/22b5f6e2-b7df-45b9-b058-b87fd0a9c446)# HiBeats
+
 ![Built on Somnia](https://img.shields.io/badge/Built%20on-Somnia-blueviolet?style=for-the-badge&logo=ethereum)  
 ![AI Powered](https://img.shields.io/badge/AI-Powered-lightblue?style=for-the-badge&logo=openai)  
 ![License MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)  
