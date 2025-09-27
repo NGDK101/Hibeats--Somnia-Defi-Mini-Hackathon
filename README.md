@@ -1,4 +1,4 @@
-# 🎵 HiBeats – AI-Powered Music NFT Platform  
+<img width="2678" height="1422" alt="diagram-export-9-27-2025-4_44_53-PM" src="https://github.com/user-attachments/assets/39fe6485-1051-4aa3-aac5-fc66daff637f" /># 🎵 HiBeats – AI-Powered Music NFT Platform  
 
 ![Built on Somnia](https://img.shields.io/badge/Built%20on-Somnia-blueviolet?style=for-the-badge&logo=ethereum)  
 ![AI Powered](https://img.shields.io/badge/AI-Powered-lightblue?style=for-the-badge&logo=openai)  
@@ -15,6 +15,9 @@ HiBeats revolutionizes the music industry by combining **AI music generation** w
 From generating professional tracks to minting NFTs and trading them — all happens seamlessly on-chain.  
 
 ---
+
+ ## Architecture Diagram 
+ <img width="2678" height="1422" alt="diagram-export-9-27-2025-4_44_53-PM" src="https://github.com/user-attachments/assets/94d5d601-61e2-4ff6-9b0f-404556c422fd" />
 
 ## ✨ Key Features  
 
@@ -112,16 +115,18 @@ From generating professional tracks to minting NFTs and trading them — all hap
 - Full smart contract deployment  
 - Suno AI integration (production-ready)  
 - Marketplace (auctions + fixed sales)  
-- Token economy with staking  
-- Responsive frontend + profiles  
+- Token economy  
+- Advanced AI controls
+- GM for daily login
 
 🔄 **Next Phase**  
 - Mobile app (iOS/Android)  
 - Cross-chain bridge  
-- Advanced AI controls  
+ 
 - Creator analytics dashboard  
 - Governance & DAO  
-- Streaming platform integration  
+- Streaming platform integration
+- Staking  
 
 ---
 
