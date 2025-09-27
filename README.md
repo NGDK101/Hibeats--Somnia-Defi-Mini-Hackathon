@@ -137,6 +137,13 @@ Builders passionate about **Web3 + AI + Music**.
 I created HiBeats to show how blockchain and AI together can reshape music ownership, discovery, and monetization.  
 
 ---
+## Screenshot Hibeats
+<img width="1918" height="921" alt="Screenshot 2025-09-27 165912" src="https://github.com/user-attachments/assets/28e6f8be-18cd-4cbe-8413-2649a9c1f89e" />
+<img width="1920" height="1080" alt="Screenshot (285)" src="https://github.com/user-attachments/assets/0bb97e7b-3b6e-4762-bf37-49cd8caa91de" />
+<img width="1919" height="920" alt="Screenshot 2025-09-27 170205" src="https://github.com/user-attachments/assets/2787eaf4-145a-46e7-91aa-ea3613af8522" />
+<img width="1919" height="918" alt="Screenshot 2025-09-27 170239" src="https://github.com/user-attachments/assets/ec9e5eee-613f-443b-89d2-377a0444c663" />
+<img width="1919" height="914" alt="Screenshot 2025-09-27 170302" src="https://github.com/user-attachments/assets/27fd7505-a51e-425e-890d-11618aacbde9" />
+<img width="1914" height="920" alt="Screenshot 2025-09-27 170340" src="https://github.com/user-attachments/assets/d6de9625-8086-474b-bc97-5e434159484d" />
 
 ## 📚 Documentation & Resources  
 
