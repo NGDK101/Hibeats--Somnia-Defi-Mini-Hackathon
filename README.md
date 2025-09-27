@@ -1,4 +1,4 @@
-<img width="2678" height="1422" alt="diagram-export-9-27-2025-4_44_53-PM" src="https://github.com/user-attachments/assets/39fe6485-1051-4aa3-aac5-fc66daff637f" /># 🎵 HiBeats – AI-Powered Music NFT Platform  
+
 
 ![Built on Somnia](https://img.shields.io/badge/Built%20on-Somnia-blueviolet?style=for-the-badge&logo=ethereum)  
 ![AI Powered](https://img.shields.io/badge/AI-Powered-lightblue?style=for-the-badge&logo=openai)  
